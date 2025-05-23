@@ -6,60 +6,34 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { PatientDashboard } from './pages/patient/Dashboard';
 import { DoctorDashboard } from './pages/doctor/Dashboard';
 import { Appointments } from './pages/patient/Appointments';
+import { FindDoctors } from './pages/patient/FindDoctors';
+import { Messages } from './pages/patient/Messages';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          <Route
-            path="/patient/dashboard"
-            element={
-              <ProtectedRoute allowedRole="patient">
-                <PatientDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/patient/appointments"
-            element={
-              <ProtectedRoute allowedRole="patient">
-                <Appointments />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/patient/find-doctors"
-            element={
-              <ProtectedRoute allowedRole="patient">
-                <p></p>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/patient/messages"
-            element={
-              <ProtectedRoute allowedRole="patient">
-                <p></p>
-              </ProtectedRoute>
-            }
-          />
+          {/* Patient Routes */}
+          <Route path="/patient" element={<ProtectedRoute allowedRole="patient" />}>
+            <Route path="dashboard" element={<PatientDashboard />} />
+            <Route path="appointments" element={<Appointments />} />
+            <Route path="find-doctors" element={<FindDoctors />} />
+            <Route path="messages" element={<Messages />} />
+          </Route>
 
           {/* Doctor Routes */}
-          <Route
-            path="/doctor/dashboard"
-            element={
-              <ProtectedRoute allowedRole="doctor">
-                <DoctorDashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/doctor" element={<ProtectedRoute allowedRole="doctor" />}>
+            <Route path="dashboard" element={<DoctorDashboard />} />
+            {/* Add more doctor routes here as needed */}
+          </Route>
 
+          {/* Default/Fallback Routes */}
           <Route path="/" element={<Navigate to="/login" replace />} />
-
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
