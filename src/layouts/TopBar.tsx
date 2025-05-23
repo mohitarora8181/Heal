@@ -17,7 +17,7 @@ export const Topbar = () => {
 
     return (
         <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 max-sm:pl-16">
                 <h1 className="text-xl font-semibold text-gray-800 md:hidden">HEAL</h1>
             </div>
 

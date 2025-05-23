@@ -54,7 +54,7 @@ export const Sidebar = () => {
             {/* Mobile Menu Button */}
             <button
                 onClick={toggleMobileSidebar}
-                className="lg:hidden fixed top-4 left-4 z-30 p-2 rounded-md bg-white shadow-md"
+                className="lg:hidden fixed top-2 left-4 z-30 p-2 rounded-md bg-white shadow-md"
             >
                 {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>

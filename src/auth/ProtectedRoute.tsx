@@ -1,15 +1,13 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import type { UserRole } from '../../types/index';
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
     allowedRole: UserRole;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
-    children,
     allowedRole
 }) => {
     const { currentUser, isLoading } = useAuth();
@@ -34,5 +32,5 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         }
     }
 
-    return <>{children}</>;
+    return <Outlet />;
 };
