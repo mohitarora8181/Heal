@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ProtectedRoute } from './auth/ProtectedRoute';
+import { PatientDashboard } from './pages/patient/Dashboard';
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
             path="/patient/dashboard"
             element={
               <ProtectedRoute allowedRole="patient">
-                <p>Patient</p>
+                <PatientDashboard />
               </ProtectedRoute>
             }
           />
@@ -24,7 +25,7 @@ function App() {
             path="/patient/appointments"
             element={
               <ProtectedRoute allowedRole="patient">
-                <p>Doctor</p>
+                <p></p>
               </ProtectedRoute>
             }
           />
