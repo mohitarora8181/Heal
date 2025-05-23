@@ -1,0 +1,46 @@
+{
+    "doctors": [
+        {
+            "id": 1,
+            "name": "Dr. Meera Sharma",
+            "specialty": "Cardiology"
+        },
+        {
+            "id": 2,
+            "name": "Dr. Harsh Neekhra",
+            "specialty": "Neurology"
+        },
+        {
+            "id": 3,
+            "name": "Dr. Anjali Roy",
+            "specialty": "Neurology"
+        },
+        {
+            "id": "4",
+            "name": "Vibhu Sachdeva",
+            "specialty": "Urologist"
+        }
+    ],
+    "patients": [
+        {
+            "id": 1,
+            "name": "Rahul Verma",
+            "symptoms": "chest pain, fatigue"
+        },
+        {
+            "id": 2,
+            "name": "Smita Bhatnagar",
+            "symptoms": "headache, dizziness"
+        },
+        {
+            "id": 3,
+            "name": "Rajeev Malhotra",
+            "symptoms": "numbness, confusion"
+        },
+        {
+            "id": "4",
+            "name": "anuj gupta",
+            "symptoms": "rash"
+        }
+    ]
+}
