@@ -60,7 +60,6 @@ export const PatientDashboard = () => {
     <PageLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Welcome back, {currentUser.name}</h1>
-        <p className="text-gray-600 mt-1">Here's your health overview</p>
       </div>
 
       <motion.div 
@@ -185,16 +184,16 @@ export const PatientDashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-primary-50 rounded-lg">
-                  <h3 className="font-medium text-primary-800 mb-2">Stay Hydrated</h3>
-                  <p className="text-sm text-gray-600">Drink at least 8 glasses of water daily to maintain proper bodily functions.</p>
+                  <h3 className="font-bold text-primary-800 mb-2">Stay Hydrated 💧</h3>
+                  <p className="text-sm font-semibold text-gray-600">Drink at least 8 glasses of water daily to maintain proper bodily functions.</p>
                 </div>
                 <div className="p-4 bg-secondary-50 rounded-lg">
-                  <h3 className="font-medium text-secondary-800 mb-2">Regular Exercise</h3>
-                  <p className="text-sm text-gray-600">Aim for at least 30 minutes of moderate exercise 5 days a week.</p>
+                  <h3 className="font-bold text-secondary-800 mb-2">Regular Exercise 🚴‍♂️</h3>
+                  <p className="text-sm font-semibold text-gray-600">Aim for at least 30 minutes of moderate exercise 5 days a week.</p>
                 </div>
                 <div className="p-4 bg-accent-50 rounded-lg">
-                  <h3 className="font-medium text-accent-800 mb-2">Healthy Sleep</h3>
-                  <p className="text-sm text-gray-600">Aim for 7-9 hours of quality sleep each night to support mental and physical health.</p>
+                  <h3 className="font-bold text-accent-800 mb-2">Healthy Sleep 🛌</h3>
+                  <p className="text-sm font-semibold text-gray-600">Aim for 7-9 hours of quality sleep each night to support mental and physical health.</p>
                 </div>
               </div>
             </CardContent>
