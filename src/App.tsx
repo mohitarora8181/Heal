@@ -8,6 +8,12 @@ import { DoctorDashboard } from './pages/doctor/Dashboard';
 import { Appointments } from './pages/patient/Appointments';
 import { FindDoctors } from './pages/patient/FindDoctors';
 import { Messages } from './pages/patient/Messages';
+import { DoctorAppointments } from './pages/doctor/Appointments';
+import { DoctorPatients } from './pages/doctor/Patients';
+import { DoctorMessages } from './pages/doctor/Messages';
+import { DoctorRecords } from './pages/doctor/Records';
+import { DoctorPrescriptions } from './pages/doctor/Prescriptions';
+import { DoctorPayments } from './pages/doctor/Payments';
 
 function App() {
   return (
@@ -29,6 +35,12 @@ function App() {
           {/* Doctor Routes */}
           <Route path="/doctor" element={<ProtectedRoute allowedRole="doctor" />}>
             <Route path="dashboard" element={<DoctorDashboard />} />
+            <Route path="appointments" element={<DoctorAppointments />} />
+            <Route path="patients" element={<DoctorPatients />} />
+            <Route path="messages" element={<DoctorMessages />} />
+            <Route path="records" element={<DoctorRecords />} />
+            <Route path="prescriptions" element={<DoctorPrescriptions />} />
+            <Route path="payments" element={<DoctorPayments />} />
             {/* Add more doctor routes here as needed */}
           </Route>
 
