@@ -4,6 +4,7 @@ import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { PatientDashboard } from './pages/patient/Dashboard';
+import { DoctorDashboard } from './pages/doctor/Dashboard';
 
 function App() {
   return (
@@ -51,7 +52,7 @@ function App() {
             path="/doctor/dashboard"
             element={
               <ProtectedRoute allowedRole="doctor">
-                <p></p>
+                <DoctorDashboard />
               </ProtectedRoute>
             }
           />
