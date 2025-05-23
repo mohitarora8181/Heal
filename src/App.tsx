@@ -5,6 +5,7 @@ import { Register } from './pages/auth/Register';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { PatientDashboard } from './pages/patient/Dashboard';
 import { DoctorDashboard } from './pages/doctor/Dashboard';
+import { Appointments } from './pages/patient/Appointments';
 
 function App() {
   return (
@@ -26,7 +27,7 @@ function App() {
             path="/patient/appointments"
             element={
               <ProtectedRoute allowedRole="patient">
-                <p></p>
+                <Appointments />
               </ProtectedRoute>
             }
           />
