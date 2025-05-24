@@ -22,7 +22,7 @@ function RoomPage(): JSX.Element {
     if (!socketRef.current) {
       setConnectionStatus('connecting');
       
-      socketRef.current = io('http://localhost:5000', {
+      socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
         upgrade: true,
         rememberUpgrade: true,
