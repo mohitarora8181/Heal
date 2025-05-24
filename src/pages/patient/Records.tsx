@@ -254,83 +254,62 @@ export const Records = () => {
         import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
       const token = localStorage.getItem("healToken");
 
-      if (!token) {
-        throw new Error("Authentication required");
-      }
+      const formData = new FormData();
+      formData.append("title", newRecord.title ?? "");
+      formData.append("description", newRecord.description ?? "");
+      formData.append("type", newRecord.type ?? "");
+      formData.append("doctorId", newRecord.doctorId ?? "");
+      formData.append("patientId", currentUser?._id || "");
+      formData.append(
+        "date",
+        newRecord.date instanceof Date ? newRecord.date.toISOString() : ""
+      );
+      if (selectedFile) formData.append("file", selectedFile);
 
-      // If there's a file, handle it separately
-      let fileUrl = undefined;
-      if (selectedFile) {
-        // Create form data just for the file upload
-        const fileFormData = new FormData();
-        fileFormData.append("file", selectedFile);
-
-        // Upload the file first
-        const fileUploadResponse = await fetch(`${backendUrl}/upload`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: fileFormData,
-        });
-
-        if (!fileUploadResponse.ok) {
-          throw new Error("Failed to upload file");
-        }
-
-        const fileData = await fileUploadResponse.json();
-        fileUrl = fileData.url; // Assuming the server returns the file URL
-      }
-
-      // Prepare record data as JSON
-      const recordData = {
-        ...newRecord,
-        date:
-          newRecord.date instanceof Date
-            ? newRecord.date.toISOString()
-            : new Date().toISOString(),
-        fileUrl: fileUrl,
-      };
-
-      // Send JSON data to backend
-      const response = await fetch(`${backendUrl}/medical-records`, {
+      const response = await fetch(`${backendUrl}/api/medical-records`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify(recordData),
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload record");
+      // First check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        throw new Error(`Unexpected response: ${text.substring(0, 100)}`);
       }
 
       const data = await response.json();
-      console.log("Record uploaded:", data);
 
-      // Close modal and reset form after successful upload
+      if (!response.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      // Success case
+      setRecords((prev) => [...prev, data]);
       setIsModalOpen(false);
-      setNewRecord({
-        patientId: currentUser?._id || "",
-        date: new Date(),
-        title: "",
-        description: "",
-        type: "lab_report",
-        doctorId: "",
-      });
-      setSelectedFile(null);
-      setSelectedDoctor(null);
-
-      // Refetch records to show the new one
-      fetchRecords();
+      resetForm();
     } catch (error: any) {
-      console.error("Error uploading record:", error);
-      setError(error.message || "Failed to upload record. Please try again.");
+      console.error("Upload error:", error);
+      setError(error.message || "Upload failed");
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const resetForm = () => {
+    setNewRecord({
+      patientId: currentUser?._id || "",
+      date: new Date(),
+      title: "",
+      description: "",
+      type: "lab_report",
+      doctorId: "",
+    });
+    setSelectedFile(null);
+    setSelectedDoctor(null);
   };
 
   // Filter records based on search term
@@ -831,8 +810,7 @@ export const Records = () => {
                   Cancel
                 </Button>
                 <Button
-                  variant="ghost"
-                  className="bg-error-500 hover:bg-error-600 text-white"
+                  className="bg-red-500 hover:bg-red-600 text-white"
                   onClick={() =>
                     recordToDelete && handleDeleteRecord(recordToDelete)
                   }
