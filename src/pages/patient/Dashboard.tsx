@@ -6,9 +6,10 @@ import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Avatar } from "../../components/common/Avatar";
 import { useAuth } from "../../auth/AuthContext";
-import { mockDoctors, mockAppointments } from "../../../dummyData";
+import { mockDoctors } from "../../../dummyData";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export const PatientDashboard = () => {
   const { currentUser } = useAuth();
@@ -18,20 +19,49 @@ export const PatientDashboard = () => {
     return <div>Unauthorized</div>;
   }
 
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/appointments/${currentUser._id}`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch appointments");
+        }
+        const data = await response.json();
+        console.log("Fetched appointments:", data);
+        setAppointments(data);
+      } catch (err: any) {
+        setError(err.message || "Error fetching appointments");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAppointments();
+  }, [currentUser._id]);
+
   // Filter upcoming appointments for the current patient
-  const upcomingAppointments = mockAppointments
-    .filter(
-      (appointment) =>
-        appointment.patientId === currentUser.id &&
-        appointment.status === "scheduled" &&
-        new Date(appointment.date) > new Date()
-    )
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3);
+  const upcomingTotalAppointments = appointments
+    .filter((appointment) => {
+      const appointmentDate = new Date(appointment.date);
+      return appointmentDate > new Date();
+    })
+    .sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+  const upcomingAppointments = upcomingTotalAppointments.slice(0, 3);
+
+  console.log("appointments:", appointments);
+  console.log("Upcoming appointments:", upcomingAppointments);
 
   // Find doctors for upcoming appointments
   const appointmentDoctors = upcomingAppointments.map((appointment) => {
-    const doctor = mockDoctors.find((doc) => doc.id === appointment.doctorId);
+    const doctor = mockDoctors.find((doc) => doc._id === appointment.doctorId);
     return {
       appointment,
       doctor,
@@ -80,7 +110,7 @@ export const PatientDashboard = () => {
                 <Calendar className="h-6 w-6 text-primary-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800">
-                {upcomingAppointments.length}
+                {upcomingTotalAppointments.length}
               </h2>
               <p className="text-gray-600 mt-1">Upcoming Appointments</p>
             </CardContent>
