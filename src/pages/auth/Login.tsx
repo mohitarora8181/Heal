@@ -23,15 +23,15 @@ export const Login = () => {
         setIsLoading(true);
 
         try {
-            await login(email, password, role);
+            const user = await login(email, password, role);
             // Redirect based on role
-            if (role === 'patient') {
+            if (user.role === 'patient') {
                 navigate('/patient/dashboard');
             } else {
                 navigate('/doctor/dashboard');
             }
-        } catch (err) {
-            setError('Invalid email or password');
+        } catch (err: any) {
+            setError(err?.message || 'Invalid email or password');
         } finally {
             setIsLoading(false);
         }
@@ -40,11 +40,11 @@ export const Login = () => {
     // Demo credentials
     const setDemoCredentials = (userRole: UserRole) => {
         if (userRole === 'patient') {
-            setEmail('patient@example.com');
-            setPassword('password');
+            setEmail('test@gmail.com');
+            setPassword('12345678');
         } else {
-            setEmail('doctor@example.com');
-            setPassword('password');
+            setEmail('doctor@gmail.com');
+            setPassword('12345678');
         }
         setRole(userRole);
     };

@@ -1,13 +1,19 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, UserRole } from '../../types/index';
-import { mockPatients, mockDoctors } from '../../dummyData';
 
 interface AuthContextType {
     currentUser: User | null;
     isLoading: boolean;
-    login: (email: string, password: string, role: UserRole) => Promise<void>;
+    login: (email: string, password: string, role: UserRole) => Promise<User>;
     logout: () => void;
-    register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+    register: (
+        email: string,
+        password: string,
+        name: string,
+        role: UserRole,
+        specialization?: string,
+        profileImageUrl?: string
+    ) => Promise<User>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,34 +35,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is stored in localStorage
-        const storedUser = localStorage.getItem('healUser');
-        if (storedUser) {
-            setCurrentUser(JSON.parse(storedUser));
+        const token = localStorage.getItem('healToken');
+        if (token) {
+            verifyToken(token);
+        } else {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }, []);
+
+    const verifyToken = async (token: string) => {
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const response = await fetch(`${backendUrl}/auth/verify-token`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCurrentUser(data.user);
+            } else {
+                // Token invalid, clear storage
+                localStorage.removeItem('healToken');
+                localStorage.removeItem('healUser');
+                setCurrentUser(null);
+            }
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            localStorage.removeItem('healToken');
+            localStorage.removeItem('healUser');
+            setCurrentUser(null);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const login = async (email: string, password: string, role: UserRole) => {
         setIsLoading(true);
         try {
-            // In a real app, this would be an API call
-            // Simulating authentication with mock data
-            let user;
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const response = await fetch(`${backendUrl}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    role
+                }),
+            });
 
-            if (role === 'patient') {
-                user = mockPatients.find(p => p.email === email);
-            } else {
-                user = mockDoctors.find(d => d.email === email);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
             }
+            const { user, token } = data;
 
-            if (!user) {
-                throw new Error('Invalid credentials');
-            }
+            const authenticatedUser: User = {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role as UserRole,
+            };
 
-            // Save user to state and localStorage
-            setCurrentUser(user);
-            localStorage.setItem('healUser', JSON.stringify(user));
+            setCurrentUser(authenticatedUser);
+
+            localStorage.setItem('healUser', JSON.stringify(authenticatedUser));
+            localStorage.setItem('healToken', token);
+
+            return authenticatedUser;
         } catch (error) {
             console.error('Login failed:', error);
             throw error;
@@ -70,18 +120,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         localStorage.removeItem('healUser');
     };
 
-    const register = async (email: string, password: string, name: string, role: UserRole) => {
+    const register = async (email: string, password: string, name: string, role: UserRole, specialization?: string, profileImageUrl?: string): Promise<User> => {
         setIsLoading(true);
         try {
-            const newUser: User = {
-                id: Math.random().toString(36).substring(2, 9),
-                name,
-                email,
-                role,
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const response = await fetch(`${backendUrl}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password,
+                    role,
+                    specialization,  // Optional field for doctor role
+                    profileImageUrl  // Optional profile image
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Registration failed');
+            }
+
+            const { user, token } = data;
+
+            const authenticatedUser: User = {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role as UserRole,
+                // Optional fields if user is a doctor
+                ...(user.specialization && { specialization: user.specialization }),
+                ...(user.profileImageUrl && { profileImageUrl: user.profileImageUrl }),
             };
 
-            setCurrentUser(newUser);
-            localStorage.setItem('healUser', JSON.stringify(newUser));
+            setCurrentUser(authenticatedUser);
+
+            localStorage.setItem('healUser', JSON.stringify(authenticatedUser));
+            localStorage.setItem('healToken', token);
+
+            return authenticatedUser;
         } catch (error) {
             console.error('Registration failed:', error);
             throw error;

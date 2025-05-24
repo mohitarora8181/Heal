@@ -15,21 +15,21 @@ export const Register = () => {
   const [role, setRole] = useState<UserRole>('patient');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     // Validate passwords match
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       await register(email, password, name, role);
       // Redirect based on role
@@ -38,8 +38,8 @@ export const Register = () => {
       } else {
         navigate('/doctor/dashboard');
       }
-    } catch (err) {
-      setError('Failed to create an account');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create an account');
     } finally {
       setIsLoading(false);
     }
@@ -73,22 +73,20 @@ export const Register = () => {
               <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
                 <button
                   type="button"
-                  className={`flex-1 py-2 px-4 rounded-md transition ${
-                    role === 'patient'
-                      ? 'bg-white shadow-sm text-primary-700'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                  className={`flex-1 py-2 px-4 rounded-md transition ${role === 'patient'
+                    ? 'bg-white shadow-sm text-primary-700'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
                   onClick={() => setRole('patient')}
                 >
                   Patient
                 </button>
                 <button
                   type="button"
-                  className={`flex-1 py-2 px-4 rounded-md transition ${
-                    role === 'doctor'
-                      ? 'bg-white shadow-sm text-primary-700'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                  className={`flex-1 py-2 px-4 rounded-md transition ${role === 'doctor'
+                    ? 'bg-white shadow-sm text-primary-700'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
                   onClick={() => setRole('doctor')}
                 >
                   Doctor
