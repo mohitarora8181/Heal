@@ -16,6 +16,9 @@ import { DoctorPrescriptions } from './pages/doctor/Prescriptions';
 import { DoctorPayments } from './pages/doctor/Payments';
 import RoomPage from './pages/videoconf/RoomPage';
 import EnterRoomId from './pages/videoconf/EnterRoomId';
+import { Prescriptions } from './pages/patient/Prescriptions';
+import { Records } from './pages/patient/Records';
+import { Payments } from './pages/patient/Payments';
 
 function App() {
   return (
@@ -32,6 +35,9 @@ function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="find-doctors" element={<FindDoctors />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="prescriptions" element={<Prescriptions />} />
+            <Route path="records" element={<Records />} />
+            <Route path="payments" element={<Payments />} />
           </Route>
 
           {/* Doctor Routes */}
@@ -48,7 +54,7 @@ function App() {
 
           {/* Video Conference Route */}
           <Route path="/EnterRoom" element={<EnterRoomId />} />
-          <Route path="/videoconf/:roomId" element={<RoomPage/>} />
+          <Route path="/videoconf/:roomId" element={<RoomPage />} />
 
           {/* Default/Fallback Routes */}
           <Route path="/" element={<Navigate to="/login" replace />} />
