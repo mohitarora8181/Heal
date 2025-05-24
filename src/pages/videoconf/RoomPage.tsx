@@ -4,7 +4,6 @@ import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import io, { Socket } from 'socket.io-client';
 import { useAuth } from '../../auth/AuthContext';
 
-
 function RoomPage(): JSX.Element {
   const { roomId } = useParams<{ roomId: string }>();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -12,11 +11,17 @@ function RoomPage(): JSX.Element {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
+  // Refs for resizing
+  const resizableRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
+  // State for panel height
+  const [transcriptHeight, setTranscriptHeight] = useState<string>('30vh');
+  const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const { currentUser } = useAuth();
 
@@ -236,6 +241,47 @@ function RoomPage(): JSX.Element {
     setError("");
   }, []);
 
+  // Add resize event handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      // Calculate height based on mouse position
+      const containerHeight = window.innerHeight;
+      const newHeight = containerHeight - e.clientY;
+
+      // Set min and max heights (10% - 90% of screen)
+      const minHeight = containerHeight * 0.1;
+      const maxHeight = containerHeight * 0.9;
+
+      const clampedHeight = Math.min(Math.max(newHeight, minHeight), maxHeight);
+      setTranscriptHeight(`${clampedHeight}px`);
+
+      // Prevent text selection during resize
+      e.preventDefault();
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      // Change cursor and disable text selection during resize
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   useEffect(() => {
     if (!roomId || !containerRef.current || !currentUser?.name) return;
 
@@ -279,18 +325,58 @@ function RoomPage(): JSX.Element {
     return () => {
       stopTranscription();
     };
-  }, [roomId, stopTranscription,currentUser]);
+  }, [roomId, stopTranscription, currentUser]);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div ref={containerRef} style={{ width: "100%", height: "70vh", flex: 1 }} />
-      <div style={{
-        height: '30vh',
-        display: 'flex',
-        flexDirection: 'column',
-        borderTop: '2px solid #ddd',
-        backgroundColor: '#f8f9fa'
-      }}>
+      <div ref={containerRef} style={{ width: "100%", flex: 1 }} />
+
+      <div
+        ref={resizableRef}
+        style={{
+          height: transcriptHeight,
+          display: 'flex',
+          flexDirection: 'column',
+          borderTop: '2px solid #ddd',
+          backgroundColor: '#f8f9fa',
+          position: 'relative',
+          minHeight: '100px',
+          transition: isResizing ? 'none' : 'height 0.1s ease'
+        }}
+      >
+        {/* Resize handle */}
+        <div
+          ref={dragHandleRef}
+          style={{
+            position: 'absolute',
+            top: '-6px',
+            left: 0,
+            right: 0,
+            height: '12px',
+            cursor: 'ns-resize',
+            zIndex: 10,
+            touchAction: 'none'
+          }}
+          onMouseDown={(e) => {
+            setIsResizing(true);
+            e.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            setIsResizing(true);
+            e.preventDefault();
+          }}
+        >
+          <div
+            style={{
+              height: '4px',
+              backgroundColor: '#ccc',
+              margin: '4px auto',
+              width: '60px',
+              borderRadius: '2px'
+            }}
+          />
+        </div>
+
         <div style={{
           padding: '10px',
           borderBottom: '1px solid #ddd',
@@ -343,6 +429,7 @@ function RoomPage(): JSX.Element {
             Clear
           </button>
         </div>
+
         {error && (
           <div style={{
             padding: '8px 10px',
