@@ -17,15 +17,12 @@ function RoomPage(): JSX.Element {
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
 
-  // Initialize socket connection
   useEffect(() => {
     if (!socketRef.current) {
       setConnectionStatus('connecting');
       
       socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
-
-        //handling reconnections
         upgrade: true,
         rememberUpgrade: true,
         reconnection: true,
@@ -86,7 +83,6 @@ function RoomPage(): JSX.Element {
     const result = new Int16Array(length);
     
     for (let i = 0; i < length; i++) {
-      // Clamp the value between -1 and 1, then convert to 16-bit
       const clampedValue = Math.max(-1, Math.min(1, buffer[i]));
       result[i] = Math.round(clampedValue * 0x7FFF);
     }
@@ -104,12 +100,10 @@ function RoomPage(): JSX.Element {
       setError("");
       console.log('Starting transcription...');
 
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
       }
 
-      // Get user media with error handling
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           sampleRate: { ideal: 16000 },
@@ -130,7 +124,6 @@ function RoomPage(): JSX.Element {
       
       mediaStreamRef.current = stream;
 
-      // Create audio context with error handling
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         throw new Error('AudioContext is not supported in this browser');
@@ -139,12 +132,10 @@ function RoomPage(): JSX.Element {
       audioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
       const audioContext = audioContextRef.current;
 
-      // Resume audio context if suspended
       if (audioContext.state === 'suspended') {
         await audioContext.resume();
       }
 
-      // Load audio worklet processor - changed from .ts to .js
       try {
         await audioContext.audioWorklet.addModule('/audio-processor.js');
       } catch (error) {
@@ -181,11 +172,8 @@ function RoomPage(): JSX.Element {
         setError('Audio processing error occurred');
       };
 
-      // Connect the nodes
       source.connect(processor);
-      // Note: Don't connect to destination to avoid feedback
 
-      // Notify server that transcription started
       socketRef.current.emit('start_transcription');
 
       console.log('Transcription started successfully');
@@ -194,7 +182,6 @@ function RoomPage(): JSX.Element {
       setError(error.message || 'Failed to start transcription');
       setIsTranscribing(false);
       
-      // Cleanup on error
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
         mediaStreamRef.current = null;
@@ -246,12 +233,10 @@ function RoomPage(): JSX.Element {
     setError("");
   }, []);
 
-  // Initialize video conference
   useEffect(() => {
     if (!roomId || !containerRef.current) return;
 
     const initializeConference = () => {
-      // Use environment variables for credentials
       const appID = 1043447705;
       const secret = "b0820d28b88b6d9756c119e1730a0824";
       const userID = `user_${Math.random().toString(36).slice(2)}`;
@@ -288,7 +273,6 @@ function RoomPage(): JSX.Element {
 
     initializeConference();
 
-    // Cleanup function
     return () => {
       stopTranscription();
     };
@@ -296,10 +280,7 @@ function RoomPage(): JSX.Element {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Video Conference Container */}
       <div ref={containerRef} style={{ width: "100%", height: "70vh", flex: 1 }} />
-      
-      {/* Transcription Panel */}
       <div style={{ 
         height: '30vh', 
         display: 'flex', 
@@ -307,7 +288,6 @@ function RoomPage(): JSX.Element {
         borderTop: '2px solid #ddd',
         backgroundColor: '#f8f9fa'
       }}>
-        {/* Controls */}
         <div style={{ 
           padding: '10px', 
           borderBottom: '1px solid #ddd',
@@ -360,8 +340,6 @@ function RoomPage(): JSX.Element {
             Clear
           </button>
         </div>
-        
-        {/* Error Display */}
         {error && (
           <div style={{ 
             padding: '8px 10px', 
@@ -373,8 +351,6 @@ function RoomPage(): JSX.Element {
             ⚠️ {error}
           </div>
         )}
-        
-        {/* Transcript Display */}
         <div style={{ 
           flex: 1,
           padding: '10px', 
