@@ -6,7 +6,6 @@ import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Avatar } from "../../components/common/Avatar";
 import { useAuth } from "../../auth/AuthContext";
-import { mockDoctors } from "../../../dummyData";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -20,7 +19,8 @@ export const PatientDashboard = () => {
   }
 
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [activePrescriptions, setActivePrescriptions] = useState<any[]>([]);
+  const [activePrescriptions, setActivePrescriptions] = useState();
+  const [medicalRecords, setMedicalRecords] = useState();
   const [, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
 
@@ -34,7 +34,6 @@ export const PatientDashboard = () => {
           throw new Error("Failed to fetch appointments");
         }
         const data = await response.json();
-        console.log("Fetched appointments:", data);
         setAppointments(data);
       } catch (err: any) {
         setError(err.message || "Error fetching appointments");
@@ -49,12 +48,12 @@ export const PatientDashboard = () => {
         const response = await fetch(
           `${import.meta.env.VITE_BACKEND_URL}/prescriptions/${currentUser._id}`
         );
+        console.log(response);
         if (!response.ok) {
           throw new Error("Failed to fetch prescriptions");
         }
         const data = await response.json();
-        console.log("Fetched prescriptions:", data);
-        setActivePrescriptions(data.filter((p: any) => p.isActive));
+        setActivePrescriptions(data.filter((p: any) => p.isActive).length);
       } catch (err: any) {
         setError(err.message || "Error fetching prescriptions");
       } finally {
@@ -62,6 +61,27 @@ export const PatientDashboard = () => {
       }
     };
     fetchPrescriptions();
+
+    const fetchMedicalRecords = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/medical-records/${
+            currentUser._id
+          }`
+        );
+        console.log(response);
+        if (!response.ok) {
+          throw new Error("Failed to fetch medical records");
+        }
+        const data = await response.json();
+        setMedicalRecords(data.length);
+      } catch (err: any) {
+        setError(err.message || "Error fetching medical records");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMedicalRecords();
   }, [currentUser._id]);
 
   // Filter upcoming appointments for the current patient
@@ -76,12 +96,9 @@ export const PatientDashboard = () => {
 
   const upcomingAppointments = upcomingTotalAppointments.slice(0, 3);
 
-  console.log("appointments:", appointments);
-  console.log("Upcoming appointments:", upcomingAppointments);
-
   // Find doctors for upcoming appointments
   const appointmentDoctors = upcomingAppointments.map((appointment) => {
-    const doctor = mockDoctors.find((doc) => doc._id === appointment.doctorId);
+    const doctor = appointments.find((doc) => doc._id === appointment.doctorId);
     return {
       appointment,
       doctor,
@@ -144,7 +161,7 @@ export const PatientDashboard = () => {
                 <Pill className="h-6 w-6 text-secondary-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800">
-                {activePrescriptions.length}
+                {activePrescriptions ?? 0}
               </h2>
               <p className="text-gray-600 mt-1">Active Prescriptions</p>
             </CardContent>
@@ -157,7 +174,9 @@ export const PatientDashboard = () => {
               <div className="bg-accent-100 p-3 rounded-full mb-3">
                 <Activity className="h-6 w-6 text-accent-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-800">3</h2>
+              <h2 className="text-3xl font-bold text-gray-800">
+                {medicalRecords ?? 0}
+              </h2>
               <p className="text-gray-600 mt-1">Health Records</p>
             </CardContent>
           </Card>
