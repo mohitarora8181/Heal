@@ -24,6 +24,8 @@ function RoomPage(): JSX.Element {
       
       socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
+
+        //handling reconnections
         upgrade: true,
         rememberUpgrade: true,
         reconnection: true,
