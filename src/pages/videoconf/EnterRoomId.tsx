@@ -9,12 +9,25 @@ function EnterRoomId() {
         navigate(`/videoconf/${roomId}`)
     }
   return (
-    <div>
-        <form onSubmit={handelSubmit}>
-            <input type="text" placeholder="Enter Room Id" onChange={(e)=>{setRoomId(e.target.value)}} value={roomId}/>
-      <button type="submit">Join</button>
-        </form>
-      
+     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
+      <form
+        className="bg-white p-8 rounded-xl shadow-lg flex flex-col gap-6 min-w-[320px]"
+        onSubmit={handelSubmit}
+      >
+        <input
+          type="text"
+          placeholder="Enter Room Id"
+          onChange={(e) => setRoomId(e.target.value)}
+          value={roomId}
+          className="px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg"
+        />
+        <button
+          type="submit"
+          className="py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition"
+        >
+          Join
+        </button>
+      </form>
     </div>
   )
 }
