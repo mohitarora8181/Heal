@@ -1,8 +1,8 @@
-import type { Patient, Doctor, Appointment, MedicalRecord, Prescription } from './types/index';
+import type { Patient, Doctor, Appointment, MedicalRecord, Prescription } from './types';
 
 export const mockPatients: Patient[] = [
     {
-        id: 'p1',
+        _id:'p1',
         name: 'John Doe',
         email: 'patient@example.com',
         role: 'patient',
@@ -11,14 +11,14 @@ export const mockPatients: Patient[] = [
         allergies: ['Penicillin', 'Peanuts'],
         medications: [
             {
-                id: 'm1',
+                _id:'m1',
                 name: 'Metformin',
                 dosage: '500mg',
                 frequency: 'Twice daily',
                 startDate: new Date('2023-01-15'),
             },
             {
-                id: 'm2',
+                _id:'m2',
                 name: 'Lisinopril',
                 dosage: '10mg',
                 frequency: 'Once daily',
@@ -27,7 +27,7 @@ export const mockPatients: Patient[] = [
         ],
     },
     {
-        id: 'p2',
+        _id:'p2',
         name: 'Jane Smith',
         email: 'jane@example.com',
         role: 'patient',
@@ -39,7 +39,7 @@ export const mockPatients: Patient[] = [
 
 export const mockDoctors: Doctor[] = [
     {
-        id: 'd1',
+        _id:'d1',
         name: 'Dr. Sarah Johnson',
         email: 'doctor@example.com',
         role: 'doctor',
@@ -67,7 +67,7 @@ export const mockDoctors: Doctor[] = [
         rating: 4.8,
     },
     {
-        id: 'd2',
+        _id:'d2',
         name: 'Dr. Michael Chen',
         email: 'michael@example.com',
         role: 'doctor',
@@ -93,7 +93,7 @@ export const mockDoctors: Doctor[] = [
 
 export const mockAppointments: Appointment[] = [
     {
-        id: 'a1',
+        _id:'a1',
         patientId: 'p1',
         doctorId: 'd1',
         date: new Date('2025-06-20T10:00:00'),
@@ -102,7 +102,7 @@ export const mockAppointments: Appointment[] = [
         type: 'video',
     },
     {
-        id: 'a2',
+        _id:'a2',
         patientId: 'p1',
         doctorId: 'd2',
         date: new Date('2025-06-25T14:30:00'),
@@ -112,7 +112,7 @@ export const mockAppointments: Appointment[] = [
         isUrgent: true,
     },
     {
-        id: 'a3',
+        _id:'a3',
         patientId: 'p2',
         doctorId: 'd1',
         date: new Date('2025-05-15T11:00:00'),
@@ -125,7 +125,7 @@ export const mockAppointments: Appointment[] = [
 
 export const mockMedicalRecords: MedicalRecord[] = [
     {
-        id: 'mr1',
+        _id:'mr1',
         patientId: 'p1',
         doctorId: 'd1',
         date: new Date('2025-05-10'),
@@ -134,7 +134,7 @@ export const mockMedicalRecords: MedicalRecord[] = [
         type: 'lab_report',
     },
     {
-        id: 'mr2',
+        _id:'mr2',
         patientId: 'p1',
         doctorId: 'd2',
         date: new Date('2025-04-22'),
@@ -146,7 +146,7 @@ export const mockMedicalRecords: MedicalRecord[] = [
 
 export const mockPrescriptions: Prescription[] = [
     {
-        id: 'pr1',
+        _id:'pr1',
         patientId: 'p1',
         doctorId: 'd1',
         date: new Date('2025-05-10'),
@@ -163,7 +163,7 @@ export const mockPrescriptions: Prescription[] = [
         refills: 2,
     },
     {
-        id: 'pr2',
+        _id:'pr2',
         patientId: 'p2',
         doctorId: 'd2',
         date: new Date('2025-05-05'),
