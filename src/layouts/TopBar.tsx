@@ -65,7 +65,7 @@ export const Topbar = () => {
                                     <LogOut size={16} className="mr-2" />
                                     Logout
                                 </button>
-                                <button onClick={(e)=>{
+                                <button className='p-3 hover:bg-gray-50 transition-all w-full' onClick={(e)=>{
                                     e.preventDefault();
                                     navigate('/EnterRoom')
                                 }}>Join Room</button>
