@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Star, MapPin, Calendar as CalIcon, AlertCircle, X } from 'lucide-react';
+import { Search, Star, MapPin, Calendar as CalIcon, AlertCircle, X, MessageCircle } from 'lucide-react';
 import { PageLayout } from '../../layouts/PageLayout';
 import { Card, CardContent } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -10,7 +10,6 @@ import { useAuth } from '../../auth/AuthContext';
 import Calendar, { type CalendarProps } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
-// Define Doctor interface based on your API response
 interface Doctor {
     _id: string;
     name: string;
@@ -46,6 +45,39 @@ export const FindDoctors = () => {
     const handleDateChange: CalendarProps['onChange'] = (value) => {
         if (value instanceof Date) {
             setSelectedDate(value);
+        }
+    };
+
+    const startConversation = async (doctor: Doctor) => {
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const token = localStorage.getItem('healToken');
+
+            if (!token) {
+                throw new Error('Authentication required');
+            }
+
+            // Create or get conversation with the doctor
+            const response = await fetch(`${backendUrl}/conversations`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ receiverId: doctor._id })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create conversation');
+            }
+
+            const conversation = await response.json();
+
+            // Navigate to messages page
+            window.location.href = `/patient/messages?conversation=${conversation._id}`;
+        } catch (error) {
+            console.error('Error starting conversation:', error);
+            // You could add a toast notification here
         }
     };
 
@@ -359,13 +391,24 @@ export const FindDoctors = () => {
                                             )}
 
                                             <div className="mt-4 flex justify-between items-center">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleViewProfile(doctor._id)}
-                                                >
-                                                    View Profile
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleViewProfile(doctor._id)}
+                                                    >
+                                                        View Profile
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => startConversation(doctor)}
+                                                        className="flex items-center"
+                                                    >
+                                                        <MessageCircle className="h-4 w-4 mr-1" />
+                                                        Message
+                                                    </Button>
+                                                </div>
                                                 <Button
                                                     size="sm"
                                                     onClick={() => handleBookAppointment(doctor)}

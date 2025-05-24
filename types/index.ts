@@ -4,7 +4,7 @@ export interface User {
     _id: string;
     name: string;
     email: string;
-    role: UserRole;
+    role: string | UserRole;
     profileImageUrl?: string;
 }
 

@@ -109,9 +109,6 @@ export const Appointments = () => {
                     <h1 className="text-2xl font-bold text-gray-800">My Appointments</h1>
                     <p className="text-gray-600 mt-1">Manage your appointments and join meetings</p>
                 </div>
-                <Button onClick={() => window.location.href = '/patient/find-doctors'}>
-                    Find and Book Doctor
-                </Button>
             </div>
 
             <div className="grid grid-cols-1 gap-6">
@@ -143,9 +140,6 @@ export const Appointments = () => {
                                         <p className="text-gray-500 text-sm mb-4">
                                             You don't have any appointments scheduled. Book an appointment with a doctor.
                                         </p>
-                                        <Button onClick={() => window.location.href = '/patient/find-doctors'}>
-                                            Find a Doctor
-                                        </Button>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
