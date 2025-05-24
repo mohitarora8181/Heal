@@ -16,6 +16,8 @@ function RoomPage(): JSX.Element {
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
+  const [conversation, setConversation] = useState<string>("");
+
 
   useEffect(() => {
     if (!socketRef.current) {
@@ -50,13 +52,21 @@ function RoomPage(): JSX.Element {
         setError("Failed to connect to transcription service");
       });
 
-      socket.on('transcript', (data: string) => {
+      socket.on('transcript', (data: any) => {
         console.log('Received transcript:', data);
         setTranscript(prev => {
-          const newTranscript = prev ? `${prev}\n${data}` : data;
-          return newTranscript;
-        });
+        const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
+        return newTranscript;
       });
+        if (typeof data === 'object' && data.user && data.text) {
+        setConversation(prev => {
+          const line = `${data.user}: ${data.text}`;
+          return prev ? `${prev}\n${line}` : line;
+        });
+      }
+      });
+
+
 
       socket.on('transcription_error', (error: string) => {
         console.error('Transcription error:', error);
@@ -233,6 +243,13 @@ function RoomPage(): JSX.Element {
     setError("");
   }, []);
 
+  const saveConversation = useCallback(()=>{
+    if (socketRef.current && roomId) {
+      console.log('Saving conversation:', conversation);
+    socketRef.current.emit('save_conversation', { roomId, conversation });
+  }
+  },[conversation, roomId]);
+
   useEffect(() => {
     if (!roomId || !containerRef.current) return;
 
@@ -339,6 +356,20 @@ function RoomPage(): JSX.Element {
           >
             Clear
           </button>
+          <button
+  onClick={saveConversation}
+  style={{
+    padding: '5px 15px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  }}
+>
+  Save Conversation
+</button>
         </div>
         {error && (
           <div style={{ 
