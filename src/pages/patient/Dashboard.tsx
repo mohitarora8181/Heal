@@ -20,6 +20,7 @@ export const PatientDashboard = () => {
   }
 
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [activePrescriptions, setActivePrescriptions] = useState<any[]>([]);
   const [, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
 
@@ -42,6 +43,25 @@ export const PatientDashboard = () => {
       }
     };
     fetchAppointments();
+
+    const fetchPrescriptions = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/prescriptions/${currentUser._id}`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch prescriptions");
+        }
+        const data = await response.json();
+        console.log("Fetched prescriptions:", data);
+        setActivePrescriptions(data.filter((p: any) => p.isActive));
+      } catch (err: any) {
+        setError(err.message || "Error fetching prescriptions");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPrescriptions();
   }, [currentUser._id]);
 
   // Filter upcoming appointments for the current patient
@@ -123,7 +143,9 @@ export const PatientDashboard = () => {
               <div className="bg-secondary-100 p-3 rounded-full mb-3">
                 <Pill className="h-6 w-6 text-secondary-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-800">2</h2>
+              <h2 className="text-3xl font-bold text-gray-800">
+                {activePrescriptions.length}
+              </h2>
               <p className="text-gray-600 mt-1">Active Prescriptions</p>
             </CardContent>
           </Card>
