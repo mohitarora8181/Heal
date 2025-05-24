@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const { user, token } = data;
 
             const authenticatedUser: User = {
-                id: user._id,
+                _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role as UserRole,

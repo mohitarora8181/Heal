@@ -1,28 +1,221 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Star, MapPin, Calendar } from 'lucide-react';
+import { Search, Star, MapPin, Calendar as CalIcon, AlertCircle, X } from 'lucide-react';
 import { PageLayout } from '../../layouts/PageLayout';
 import { Card, CardContent } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Avatar } from '../../components/common/Avatar';
-import { mockDoctors } from '../../../dummyData';
+import { useAuth } from '../../auth/AuthContext';
+import Calendar, { type CalendarProps } from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+
+// Define Doctor interface based on your API response
+interface Doctor {
+    _id: string;
+    name: string;
+    email: string;
+    specialization: string;
+    qualifications: string[];
+    rating?: number;
+    profileImageUrl?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
 
 export const FindDoctors = () => {
+    const { currentUser } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedSpecialization, setSelectedSpecialization] = useState('all');
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [specializations, setSpecializations] = useState<string[]>([]);
 
-    const specializations = Array.from(
-        new Set(mockDoctors.map(doctor => doctor.specialization))
-    );
+    // Booking modal states
+    const [showBookingModal, setShowBookingModal] = useState(false);
+    const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedTime, setSelectedTime] = useState<string>("");
+    const [appointmentType, setAppointmentType] = useState<'video' | 'audio' | 'inperson'>('video');
+    const [isUrgent, setIsUrgent] = useState(false);
+    const [bookingLoading, setBookingLoading] = useState(false);
+    const [bookingError, setBookingError] = useState('');
+    const [bookingSuccess, setBookingSuccess] = useState(false);
 
-    const filteredDoctors = mockDoctors.filter(doctor => {
+    const handleDateChange: CalendarProps['onChange'] = (value) => {
+        if (value instanceof Date) {
+            setSelectedDate(value);
+        }
+    };
+
+    useEffect(() => {
+        const fetchDoctors = async () => {
+            try {
+                setLoading(true);
+                setError('');
+
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+                const token = localStorage.getItem('healToken');
+
+                if (!token) {
+                    throw new Error('Authentication token not found');
+                }
+
+                const response = await fetch(`${backendUrl}/users?role=doctor`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to fetch doctors');
+                }
+
+                const responseData = await response.json();
+
+                // Extract doctors from the users array in the response
+                const data = responseData.users || [];
+
+                // Map API response to Doctor interface
+                const fetchedDoctors: Doctor[] = data.map((doc: any) => ({
+                    _id: doc._id,
+                    name: doc.name || 'Unknown',
+                    email: doc.email,
+                    specialization: doc.specialization || 'General Practitioner',
+                    qualifications: doc.qualifications || [],
+                    rating: doc.rating || 4.0,
+                    profileImageUrl: doc.profileImageUrl || null,
+                    createdAt: doc.createdAt,
+                    updatedAt: doc.updatedAt
+                }));
+
+                setDoctors(fetchedDoctors);
+
+                // Extract unique specializations (handling possibly empty specialization fields)
+                const specs = Array.from(
+                    new Set(fetchedDoctors
+                        .map(doctor => doctor.specialization)
+                        .filter(spec => spec) // Remove empty values
+                    )
+                );
+                setSpecializations(specs.length > 0 ? specs : ['General Practitioner']);
+
+            } catch (err) {
+                console.error('Error fetching doctors:', err);
+                setError(err instanceof Error ? err.message : 'Failed to load doctors');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDoctors();
+    }, []);
+
+    const filteredDoctors = doctors.filter(doctor => {
         const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesSpecialization = selectedSpecialization === 'all' ||
             doctor.specialization === selectedSpecialization;
         return matchesSearch && matchesSpecialization;
     });
+
+    const handleBookAppointment = (doctor: Doctor) => {
+        setSelectedDoctor(doctor);
+        setShowBookingModal(true);
+        // Reset booking form
+        setSelectedDate(new Date());
+        setSelectedTime("");
+        setAppointmentType('video');
+        setIsUrgent(false);
+        setBookingError('');
+        setBookingSuccess(false);
+    };
+
+    const handleViewProfile = (doctorId: string) => {
+        window.location.href = `/patient/doctor/${doctorId}`;
+    };
+
+    const closeBookingModal = () => {
+        setShowBookingModal(false);
+        setSelectedDoctor(null);
+    };
+
+    const generateTimeSlots = () => {
+        const slots = [];
+        for (let hour = 9; hour < 17; hour++) {
+            for (let minute of ['00', '30']) {
+                const time = `${hour}:${minute}`;
+                slots.push(time);
+            }
+        }
+        return slots;
+    };
+
+    const timeSlots = generateTimeSlots();
+
+    const submitAppointmentRequest = async () => {
+        if (!selectedTime) {
+            setBookingError('Please select a time for your appointment');
+            return;
+        }
+
+        if (!selectedDoctor) {
+            setBookingError('Something went wrong. Please try again.');
+            return;
+        }
+
+        try {
+            setBookingLoading(true);
+            setBookingError('');
+
+            // Combine date and time for the appointment
+            const [hours, minutes] = selectedTime.split(':');
+            const appointmentDate = new Date(selectedDate);
+            appointmentDate.setHours(Number(hours), Number(minutes), 0);
+
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const token = localStorage.getItem('healToken');
+
+            const response = await fetch(`${backendUrl}/appointments`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    patientId: currentUser?._id,
+                    doctorId: selectedDoctor._id,
+                    date: appointmentDate.toISOString(),
+                    duration: 30, // 30 minutes by default
+                    type: appointmentType,
+                    isUrgent: isUrgent
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to book appointment');
+            }
+
+            setBookingSuccess(true);
+            setTimeout(() => {
+                closeBookingModal();
+                // Redirect to appointments page
+                window.location.href = "/patient/appointments";
+            }, 2000);
+
+        } catch (err) {
+            console.error('Error booking appointment:', err);
+            setBookingError(err instanceof Error ? err.message : 'Failed to book appointment');
+        } finally {
+            setBookingLoading(false);
+        }
+    };
 
     return (
         <PageLayout>
@@ -58,8 +251,8 @@ export const FindDoctors = () => {
                                 <div className="space-y-2">
                                     <button
                                         className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === 'all'
-                                                ? 'bg-primary-50 text-primary-700'
-                                                : 'hover:bg-gray-50'
+                                            ? 'bg-primary-50 text-primary-700'
+                                            : 'hover:bg-gray-50'
                                             }`}
                                         onClick={() => setSelectedSpecialization('all')}
                                     >
@@ -69,8 +262,8 @@ export const FindDoctors = () => {
                                         <button
                                             key={spec}
                                             className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
-                                                    ? 'bg-primary-50 text-primary-700'
-                                                    : 'hover:bg-gray-50'
+                                                ? 'bg-primary-50 text-primary-700'
+                                                : 'hover:bg-gray-50'
                                                 }`}
                                             onClick={() => setSelectedSpecialization(spec)}
                                         >
@@ -88,65 +281,254 @@ export const FindDoctors = () => {
                     animate={{ opacity: 1, x: 0 }}
                     className="lg:col-span-3"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredDoctors.map(doctor => (
-                            <motion.div
-                                key={doctor.id}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <Card className="h-full">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start">
-                                            <Avatar user={doctor} size="lg" className="mr-4" />
-                                            <div className="flex-1">
-                                                <h3 className="font-medium text-gray-800">{doctor.name}</h3>
-                                                <p className="text-sm text-gray-500">{doctor.specialization}</p>
-                                                <div className="flex items-center mt-1">
-                                                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                                    <span className="text-sm text-gray-600 ml-1">{doctor.rating}</span>
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+                        </div>
+                    ) : error ? (
+                        <div className="bg-error-50 text-error-700 p-4 rounded-lg">
+                            <p>{error}</p>
+                        </div>
+                    ) : filteredDoctors.length === 0 ? (
+                        <div className="bg-gray-50 p-8 rounded-lg text-center">
+                            <p className="text-gray-600">No doctors found matching your criteria.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredDoctors.map(doctor => (
+                                <motion.div
+                                    key={doctor._id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <Card className="h-full">
+                                        <CardContent className="p-4">
+                                            <div className="flex items-start">
+                                                <Avatar
+                                                    user={{
+                                                        _id: doctor._id,
+                                                        name: doctor.name,
+                                                        profileImageUrl: doctor.profileImageUrl || undefined,
+                                                        email: doctor.email,
+                                                        role: "doctor"
+                                                    }}
+                                                    size="lg"
+                                                    className="mr-4"
+                                                />
+                                                <div className="flex-1">
+                                                    <h3 className="font-medium text-gray-800">{doctor.name}</h3>
+                                                    <p className="text-sm text-gray-500">
+                                                        {doctor.specialization || 'General Practitioner'}
+                                                    </p>
+                                                    {doctor.rating && (
+                                                        <div className="flex items-center mt-1">
+                                                            <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                                                            <span className="text-sm text-gray-600 ml-1">{doctor.rating}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className="mt-4">
-                                            <div className="flex items-center text-sm text-gray-600 mb-2">
-                                                <MapPin className="h-4 w-4 mr-2" />
-                                                <span>Available for Online Consultation</span>
+                                            <div className="mt-4">
+                                                <div className="flex items-center text-sm text-gray-600 mb-2">
+                                                    <MapPin className="h-4 w-4 mr-2" />
+                                                    <span>Available for Online Consultation</span>
+                                                </div>
+                                                <div className="flex items-center text-sm text-gray-600">
+                                                    <CalIcon className="h-4 w-4 mr-2" />
+                                                    <span>Member since: {new Date(doctor.createdAt || "").toLocaleDateString()}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center text-sm text-gray-600">
-                                                <Calendar className="h-4 w-4 mr-2" />
-                                                <span>Next Available: Today</span>
-                                            </div>
-                                        </div>
 
-                                        <div className="mt-4 space-y-2">
-                                            {doctor.qualifications.map((qual, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded-full inline-block mr-2"
+                                            {doctor.qualifications && doctor.qualifications.length > 0 ? (
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                    {doctor.qualifications.map((qual, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded-full"
+                                                        >
+                                                            {qual}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="mt-4 text-sm text-gray-500">
+                                                    Contact for qualification details
+                                                </div>
+                                            )}
+
+                                            <div className="mt-4 flex justify-between items-center">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleViewProfile(doctor._id)}
                                                 >
-                                                    {qual}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="mt-4 flex justify-between items-center">
-                                            <Button variant="outline" size="sm">
-                                                View Profile
-                                            </Button>
-                                            <Button size="sm">
-                                                Book Appointment
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
+                                                    View Profile
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleBookAppointment(doctor)}
+                                                >
+                                                    Book Appointment
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
                 </motion.div>
             </div>
+
+            {/* Appointment Booking Modal */}
+            {showBookingModal && selectedDoctor && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white h-full rounded-lg shadow-lg w-full max-w-2xl overflow-y-auto"
+                    >
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-800">Book Appointment</h2>
+                                <button
+                                    onClick={closeBookingModal}
+                                    className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+
+                            <div className="flex items-center mb-6">
+                                <Avatar
+                                    user={{
+                                        _id: selectedDoctor._id,
+                                        name: selectedDoctor.name,
+                                        profileImageUrl: selectedDoctor.profileImageUrl || undefined,
+                                        email: selectedDoctor.email,
+                                        role: "doctor"
+                                    }}
+                                    size="lg"
+                                    className="mr-4"
+                                />
+                                <div>
+                                    <h3 className="font-medium text-gray-800">{selectedDoctor.name}</h3>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedDoctor.specialization || 'General Practitioner'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {bookingSuccess ? (
+                                <div className="bg-success-50 text-success-700 p-4 rounded-lg mb-6">
+                                    <p>Your appointment has been booked successfully! Redirecting to appointments page...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div>
+                                        <h4 className="font-medium text-gray-800 mb-2">Select Date</h4>
+                                        <Calendar
+                                            onChange={handleDateChange}
+                                            value={selectedDate}
+                                            className="w-full border rounded-lg"
+                                            minDate={new Date()}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-medium text-gray-800 mb-2">Select Time</h4>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {timeSlots.map((time) => (
+                                                <Button
+                                                    key={time}
+                                                    variant={selectedTime === time ? "primary" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => setSelectedTime(time)}
+                                                    className="justify-center"
+                                                >
+                                                    {`${time.split(':')[0]}:${time.split(':')[1]}`}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-medium text-gray-800 mb-2">Appointment Type</h4>
+                                        <div className="flex space-x-2">
+                                            <Button
+                                                variant={appointmentType === 'video' ? 'primary' : 'outline'}
+                                                size="sm"
+                                                onClick={() => setAppointmentType('video')}
+                                            >
+                                                Video Call
+                                            </Button>
+                                            <Button
+                                                variant={appointmentType === 'audio' ? 'primary' : 'outline'}
+                                                size="sm"
+                                                onClick={() => setAppointmentType('audio')}
+                                            >
+                                                Audio Call
+                                            </Button>
+                                            <Button
+                                                variant={appointmentType === 'inperson' ? 'primary' : 'outline'}
+                                                size="sm"
+                                                onClick={() => setAppointmentType('inperson')}
+                                            >
+                                                In Person
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="urgentCheckbox"
+                                            checked={isUrgent}
+                                            onChange={() => setIsUrgent(!isUrgent)}
+                                            className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                                        />
+                                        <label htmlFor="urgentCheckbox" className="ml-2 text-gray-700">
+                                            This is an urgent appointment
+                                        </label>
+                                    </div>
+
+                                    {bookingError && (
+                                        <div className="bg-error-50 text-error-700 p-4 rounded-lg">
+                                            <div className="flex items-start">
+                                                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                                                <p>{bookingError}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end space-x-3 pt-4">
+                                        <Button
+                                            variant="outline"
+                                            onClick={closeBookingModal}
+                                            disabled={bookingLoading}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={submitAppointmentRequest}
+                                            disabled={bookingLoading}
+                                        >
+                                            {bookingLoading ? (
+                                                <>
+                                                    <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-white rounded-full"></span>
+                                                    Booking...
+                                                </>
+                                            ) : "Confirm Booking"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </PageLayout>
     );
 };

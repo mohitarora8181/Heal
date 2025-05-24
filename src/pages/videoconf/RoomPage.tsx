@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, type JSX } from 'react';
 import { useParams } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import io, { Socket } from 'socket.io-client';
+import { useAuth } from '../../auth/AuthContext';
 
 
 function RoomPage(): JSX.Element {
@@ -11,16 +12,18 @@ function RoomPage(): JSX.Element {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
-  
+
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
 
+  const { currentUser } = useAuth();
+
   useEffect(() => {
     if (!socketRef.current) {
       setConnectionStatus('connecting');
-      
+
       socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
         upgrade: true,
@@ -81,12 +84,12 @@ function RoomPage(): JSX.Element {
   const convertFloat32ToInt16 = useCallback((buffer: Float32Array): ArrayBuffer => {
     const length = buffer.length;
     const result = new Int16Array(length);
-    
+
     for (let i = 0; i < length; i++) {
       const clampedValue = Math.max(-1, Math.min(1, buffer[i]));
       result[i] = Math.round(clampedValue * 0x7FFF);
     }
-    
+
     return result.buffer;
   }, []);
 
@@ -104,14 +107,14 @@ function RoomPage(): JSX.Element {
         throw new Error('getUserMedia is not supported in this browser');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: { ideal: 16000 },
           channelCount: { ideal: 1 },
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
-        } 
+        }
       }).catch((err) => {
         if (err.name === 'NotAllowedError') {
           throw new Error('Microphone access denied. Please allow microphone access and try again.');
@@ -121,7 +124,7 @@ function RoomPage(): JSX.Element {
           throw new Error(`Failed to access microphone: ${err.message}`);
         }
       });
-      
+
       mediaStreamRef.current = stream;
 
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -144,7 +147,7 @@ function RoomPage(): JSX.Element {
       }
 
       const source = audioContext.createMediaStreamSource(stream);
-      
+
       let processor: AudioWorkletNode;
       try {
         processor = new AudioWorkletNode(audioContext, 'audio-processor');
@@ -152,7 +155,7 @@ function RoomPage(): JSX.Element {
         console.error('Failed to create AudioWorkletNode:', error);
         throw new Error('Failed to create audio processor node');
       }
-      
+
       processorNodeRef.current = processor;
 
       processor.port.onmessage = (event) => {
@@ -181,7 +184,7 @@ function RoomPage(): JSX.Element {
       console.error('Error starting transcription:', error);
       setError(error.message || 'Failed to start transcription');
       setIsTranscribing(false);
-      
+
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
         mediaStreamRef.current = null;
@@ -234,19 +237,19 @@ function RoomPage(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!roomId || !containerRef.current) return;
+    if (!roomId || !containerRef.current || !currentUser?.name) return;
 
     const initializeConference = () => {
       const appID = 1043447705;
       const secret = "b0820d28b88b6d9756c119e1730a0824";
       const userID = `user_${Math.random().toString(36).slice(2)}`;
-      const userName = `User_${Math.random().toString(36).slice(2, 8)}`;
+      const userName = currentUser?.name || userID;
 
       try {
         const KitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
           appID, secret, roomId, userID, userName
         );
-        
+
         const zc = ZegoUIKitPrebuilt.create(KitToken);
         zc.joinRoom({
           container: containerRef.current!,
@@ -276,20 +279,20 @@ function RoomPage(): JSX.Element {
     return () => {
       stopTranscription();
     };
-  }, [roomId, stopTranscription]);
+  }, [roomId, stopTranscription,currentUser]);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div ref={containerRef} style={{ width: "100%", height: "70vh", flex: 1 }} />
-      <div style={{ 
-        height: '30vh', 
-        display: 'flex', 
+      <div style={{
+        height: '30vh',
+        display: 'flex',
         flexDirection: 'column',
         borderTop: '2px solid #ddd',
         backgroundColor: '#f8f9fa'
       }}>
-        <div style={{ 
-          padding: '10px', 
+        <div style={{
+          padding: '10px',
           borderBottom: '1px solid #ddd',
           display: 'flex',
           alignItems: 'center',
@@ -298,16 +301,16 @@ function RoomPage(): JSX.Element {
           flexWrap: 'wrap'
         }}>
           <h3 style={{ margin: 0, fontSize: '16px' }}>Live Transcript</h3>
-          <div style={{ 
-            width: '8px', 
-            height: '8px', 
-            borderRadius: '50%', 
-            backgroundColor: connectionStatus === 'connected' ? '#28a745' : 
-                           connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: connectionStatus === 'connected' ? '#28a745' :
+              connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
           }} />
           <span style={{ fontSize: '12px', color: '#666' }}>
-            {connectionStatus === 'connected' ? 'Connected' : 
-             connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            {connectionStatus === 'connected' ? 'Connected' :
+              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
           </span>
           <button
             onClick={isTranscribing ? stopTranscription : startTranscription}
@@ -341,9 +344,9 @@ function RoomPage(): JSX.Element {
           </button>
         </div>
         {error && (
-          <div style={{ 
-            padding: '8px 10px', 
-            backgroundColor: '#f8d7da', 
+          <div style={{
+            padding: '8px 10px',
+            backgroundColor: '#f8d7da',
             color: '#721c24',
             borderBottom: '1px solid #f5c6cb',
             fontSize: '12px'
@@ -351,10 +354,10 @@ function RoomPage(): JSX.Element {
             ⚠️ {error}
           </div>
         )}
-        <div style={{ 
+        <div style={{
           flex: 1,
-          padding: '10px', 
-          overflowY: 'auto', 
+          padding: '10px',
+          overflowY: 'auto',
           backgroundColor: 'white',
           fontSize: '14px',
           lineHeight: '1.4'
@@ -365,9 +368,9 @@ function RoomPage(): JSX.Element {
             </div>
           ) : (
             <div style={{ color: '#999', fontStyle: 'italic' }}>
-              {isTranscribing ? 'Listening...' : 
-               connectionStatus !== 'connected' ? 'Please wait for connection...' :
-               'Click "Start Transcription" to begin'}
+              {isTranscribing ? 'Listening...' :
+                connectionStatus !== 'connected' ? 'Please wait for connection...' :
+                  'Click "Start Transcription" to begin'}
             </div>
           )}
         </div>
