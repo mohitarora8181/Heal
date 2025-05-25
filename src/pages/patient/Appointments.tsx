@@ -180,12 +180,14 @@ export const Appointments = () => {
                     {allAppointments.map((appointment) => {
                       const appointmentTime = new Date(appointment.date);
                       const now = new Date();
+                      //@ts-ignore
                       const isUpcoming = isBefore(now, appointmentTime);
                       const meetingEndTime = addMinutes(
                         appointmentTime,
                         appointment.duration
                       );
                       const canJoinEarly = addMinutes(appointmentTime, -5);
+                      //@ts-ignore
                       const canJoinNow =
                         isBefore(now, meetingEndTime) &&
                         !isBefore(now, canJoinEarly);

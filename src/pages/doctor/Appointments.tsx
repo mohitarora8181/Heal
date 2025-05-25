@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, Video, Phone, MapPin, Check, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Video, Phone, MapPin } from 'lucide-react';
 import { PageLayout } from '../../layouts/PageLayout';
 import { Card, CardContent, CardHeader } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';

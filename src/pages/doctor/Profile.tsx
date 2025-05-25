@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 import {
-    Calendar, Clock, User, Star, Phone, Mail,
+    Calendar, User, Star, Mail,
     Award, Briefcase, Stethoscope, FileText, Users
 } from 'lucide-react';
 import { PageLayout } from '../../layouts/PageLayout';
@@ -71,8 +71,10 @@ export const DoctorProfile = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [profileDoctor, setProfileDoctor] = useState<any>(null);
+    //@ts-ignore
     const [doctorDetails, setDoctorDetails] = useState<DoctorDetails | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
+    //@ts-ignore
     const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
 
     const isViewingOtherDoctor = params.doctorId && params.doctorId !== currentUser?._id;
@@ -596,7 +598,7 @@ function Globe(props: any) {
     );
 }
 
-// Lucide icons import for Activity (was missing from the imports)
+//@ts-ignore
 function Activity(props: any) {
     return (
         <svg

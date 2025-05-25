@@ -113,6 +113,9 @@ export const DoctorDashboard = () => {
         setAppointments(enhancedAppointments);
         setPatients(users.filter((u: any) => u.role == "patient"));
         setUnreadMessages(unreadMessagesCount);
+        setStats({
+          satisfaction: "__"
+        });
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
