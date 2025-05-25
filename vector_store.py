@@ -47,6 +47,59 @@ class VectorStore:
         faiss.write_index(self.index, self.index_path)
 
     def search(self, query, top_k=3):
-        query_embedding = self.model.encode([query], convert_to_numpy=True)
-        distances, indices = self.index.search(query_embedding, top_k)
-        return [self.texts[i] for i in indices[0]]
+        """
+        Search for similar entries to the query in the vector store.
+        
+        Args:
+            query: The search query
+            top_k: Number of results to return
+            
+        Returns:
+            List of relevant text entries
+        """
+        # Make sure we don't try to retrieve more entries than we have
+        actual_k = min(top_k, len(self.texts)) if self.texts else 0
+        
+        # If we have no texts or k is 0, return empty list
+        if actual_k == 0:
+            print("Warning: Vector store is empty or top_k is 0")
+            return []
+        
+        try:
+            query_embedding = self.model.encode([query], convert_to_numpy=True)
+            distances, indices = self.index.search(query_embedding, actual_k)
+            
+            # Filter invalid indices and return corresponding texts
+            results = []
+            for idx in indices[0]:
+                if 0 <= idx < len(self.texts):  # Check if index is valid
+                    results.append(self.texts[idx])
+                else:
+                    print(f"Warning: Index {idx} out of range (0-{len(self.texts)-1})")
+            
+            return results
+        except Exception as e:
+            print(f"Error in vector search: {str(e)}")
+            return []  # Return empty list on error
+
+    def rebuild_index(self):
+        """
+        Rebuilds the FAISS index from the existing texts.
+        Use this if the index and texts get out of sync.
+        """
+        # Clear the existing index
+        self.index = faiss.IndexFlatL2(self.model.get_sentence_embedding_dimension())
+        
+        if not self.texts:
+            print("No texts available for indexing")
+            return
+            
+        # Re-encode and add all texts
+        embeddings = self.model.encode(self.texts, convert_to_numpy=True)
+        self.index.add(embeddings)
+        
+        # Save the updated index
+        faiss.write_index(self.index, self.index_path)
+        self._save_texts()
+        
+        print(f"Index rebuilt with {len(self.texts)} entries")

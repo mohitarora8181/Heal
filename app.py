@@ -12,7 +12,7 @@ CORS(app, origins = ["*"])
 
 #building vector store for sampleData.json
 vector_store = VectorStore()
-#vector_store.build_index("sampleData.json")
+vector_store.build_index("data/sampleData.json")
 
 @app.route('/')
 def home():
@@ -72,25 +72,32 @@ def register_patient():
 def message():
     data = request.get_json()
     user_message = data.get("message")
+    user_name = data.get("user_name", "")
+    medical_records = data.get("medical_records", [])
 
     if not user_message:
         return jsonify({"error": "No message provided"}), 400
 
     try:
-       # relevent_entries = vector_store.search(user_message)
-        #print(f"Relevant entries found: {relevent_entries}")
-        response_text = generate(user_message) #, context=relevent_entries)
+        relevant_entries = vector_store.search(user_message)
+        response_text = generate(
+            user_message, 
+            context=relevant_entries, 
+            user_name=user_name, 
+            medical_records=medical_records
+        )
+        
         is_exit = user_message.strip().lower() == "quit"
+        
         return jsonify({
             "response": response_text,
             "end_conversation": is_exit
         })
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error processing message: {str(e)}")
+        return jsonify({"error": f"Failed to generate response: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
-    #with app.test_request_context():
-    #    print("Available routes:")
-    #    print(app.url_map)
     app.run(debug=True, host='127.0.0.1', port=5000)
