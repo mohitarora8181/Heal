@@ -25,6 +25,41 @@ function RoomPage(): JSX.Element {
 
   const { currentUser } = useAuth();
   const [conversation, setConversation] = useState<string>("");
+  const [popupPos, setPopupPos] = useState({ x: 32, y: 120 });
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+
+
+  const handleDragStart = (e: MouseEvent<HTMLDivElement>) => {
+    setDragging(true);
+    dragOffset.current = {
+      x: e.clientX - popupPos.x,
+      y: e.clientY - popupPos.y,
+    };
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const handleDrag = (e: MouseEvent) => {
+      if (!dragging) return;
+      setPopupPos({
+        x: Math.max(0, e.clientX - dragOffset.current.x),
+        y: Math.max(0, e.clientY - dragOffset.current.y),
+      });
+    };
+    const handleDragEnd = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+    };
+    if (dragging) {
+      window.addEventListener('mousemove', handleDrag);
+      window.addEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [dragging]);
 
 
   useEffect(() => {
@@ -40,6 +75,7 @@ function RoomPage(): JSX.Element {
         reconnectionDelay: 1000,
       });
 
+      
       const socket = socketRef.current;
 
       socket.on('connect', () => {
@@ -47,6 +83,11 @@ function RoomPage(): JSX.Element {
         setConnectionStatus('connected');
         setError("");
       });
+
+      if(currentUser?.name && roomId) {
+        console.log('Joining room:', roomId, 'as user:', currentUser.name);
+        socket.emit('join_room', { roomId, user: currentUser.name });
+      }
 
       socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
@@ -345,155 +386,72 @@ function RoomPage(): JSX.Element {
   }, [roomId, stopTranscription, currentUser]);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div ref={containerRef} style={{ width: "100%", flex: 1 }} />
+    <div className="relative h-screen flex flex-col">
+    <div ref={containerRef} className="w-full flex-1" />
 
+    {/* Draggable Live Transcript Popup - left bottom */}
+    <div
+  className="fixed z-50 pointer-events-none"
+  style={{
+    left: popupPos.x,
+    top: popupPos.y,
+    bottom: 'auto',
+  }}
+>
       <div
-        ref={resizableRef}
-        style={{
-          height: transcriptHeight,
-          display: 'flex',
-          flexDirection: 'column',
-          borderTop: '2px solid #ddd',
-          backgroundColor: '#f8f9fa',
-          position: 'relative',
-          minHeight: '100px',
-          transition: isResizing ? 'none' : 'height 0.1s ease'
-        }}
+        className="min-w-[320px] max-w-xl bg-white/95 rounded-2xl shadow-2xl border border-gray-200 pointer-events-auto px-6 py-4 flex flex-col gap-2"
+        style={{ cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
       >
-        {/* Resize handle */}
+        {/* Drag handle */}
         <div
-          ref={dragHandleRef}
-          style={{
-            position: 'absolute',
-            top: '-6px',
-            left: 0,
-            right: 0,
-            height: '12px',
-            cursor: 'ns-resize',
-            zIndex: 10,
-            touchAction: 'none'
-          }}
-          onMouseDown={(e) => {
-            setIsResizing(true);
-            e.preventDefault();
-          }}
-          onTouchStart={(e) => {
-            setIsResizing(true);
-            e.preventDefault();
-          }}
+          className="flex items-center gap-3 mb-1 flex-wrap cursor-move"
+          onMouseDown={handleDragStart}
         >
-          <div
-            style={{
-              height: '4px',
-              backgroundColor: '#ccc',
-              margin: '4px auto',
-              width: '60px',
-              borderRadius: '2px'
-            }}
-          />
-        </div>
-
-        <div style={{
-          padding: '10px',
-          borderBottom: '1px solid #ddd',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: 'white',
-          flexWrap: 'wrap'
-        }}>
-          <h3 style={{ margin: 0, fontSize: '16px' }}>Live Transcript</h3>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: connectionStatus === 'connected' ? '#28a745' :
-              connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
-          }} />
-          <span style={{ fontSize: '12px', color: '#666' }}>
+          <h3 className="m-0 text-base font-semibold text-indigo-700 select-none">Live Transcript</h3>
+          <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-500'}`} />
+          <span className="text-xs text-gray-600 select-none">
             {connectionStatus === 'connected' ? 'Connected' :
               connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
           </span>
           <button
             onClick={isTranscribing ? stopTranscription : startTranscription}
             disabled={connectionStatus !== 'connected'}
-            style={{
-              padding: '5px 15px',
-              backgroundColor: isTranscribing ? '#dc3545' : '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: connectionStatus === 'connected' ? 'pointer' : 'not-allowed',
-              fontSize: '12px',
-              opacity: connectionStatus === 'connected' ? 1 : 0.6
-            }}
+            className={`px-3 py-1 rounded text-xs font-medium ml-2 ${isTranscribing ? 'bg-red-600' : 'bg-green-600'} text-white disabled:opacity-60 disabled:cursor-not-allowed`}
           >
-            {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
+            {isTranscribing ? 'Stop' : 'Start'}
           </button>
           <button
             onClick={clearTranscript}
-            style={{
-              padding: '5px 15px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
+            className="px-3 py-1 rounded bg-gray-600 text-white text-xs font-medium ml-1"
           >
             Clear
           </button>
           <button
-  onClick={saveConversation}
-  style={{
-    padding: '5px 15px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '12px'
-  }}
->
-  Save Conversation
-</button>
+            onClick={saveConversation}
+            className="px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium ml-1"
+          >
+            Save
+          </button>
         </div>
-
         {error && (
-          <div style={{
-            padding: '8px 10px',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            borderBottom: '1px solid #f5c6cb',
-            fontSize: '12px'
-          }}>
+          <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
             ⚠️ {error}
           </div>
         )}
-        <div style={{
-          flex: 1,
-          padding: '10px',
-          overflowY: 'auto',
-          backgroundColor: 'white',
-          fontSize: '14px',
-          lineHeight: '1.4'
-        }}>
+        <div className="min-h-[40px] max-h-[120px] overflow-y-auto bg-indigo-50 rounded-lg px-3 py-2 text-sm leading-relaxed text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
           {transcript ? (
-            <div style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-              {transcript}
-            </div>
+            <div>{transcript}</div>
           ) : (
-            <div style={{ color: '#999', fontStyle: 'italic' }}>
+            <div className="text-gray-400 italic">
               {isTranscribing ? 'Listening...' :
                 connectionStatus !== 'connected' ? 'Please wait for connection...' :
-                  'Click "Start Transcription" to begin'}
+                  'Click "Start" to begin live transcription'}
             </div>
           )}
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
