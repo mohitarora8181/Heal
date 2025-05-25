@@ -4,6 +4,10 @@ import { createPortal } from "react-dom";
 
 interface SquarePaymentModalProps {
   amount: number;
+  patientId: string;
+  doctorId: string;
+  type: string;
+  method: string;
   onSuccess?: (payment: any) => void;
   onError?: (error: string) => void;
   onClose: () => void;
@@ -17,6 +21,10 @@ declare global {
 
 const SquarePaymentModal = ({
   amount,
+  patientId,
+  doctorId,
+  type,
+  method,
   onSuccess,
   onError,
   onClose,
@@ -64,12 +72,25 @@ const SquarePaymentModal = ({
     try {
       const tokenResult = await card.tokenize();
       if (tokenResult.status === "OK") {
+        console.log({
+          sourceId: tokenResult.token,
+          amount: amount,
+          currency: "USD",
+          patientId: patientId,
+          doctorId: doctorId,
+          type: type,
+          method: method,
+        });
         const response = await axios.post(
           `${import.meta.env.VITE_BACKEND_URL}/payments/makePayment`,
           {
             sourceId: tokenResult.token,
             amount: amount,
             currency: "USD",
+            patientId: patientId,
+            doctorId: doctorId,
+            type: type,
+            method: method,
           }
         );
 
@@ -125,6 +146,10 @@ const SquarePaymentModal = ({
 
 const SquarePaymentButton = ({
   amount,
+  patientId,
+  doctorId,
+  type,
+  method,
   onSuccess,
   onError,
 }: SquarePaymentModalProps) => {
@@ -142,6 +167,10 @@ const SquarePaymentButton = ({
       {showModal && (
         <SquarePaymentModal
           amount={amount}
+          patientId={patientId}
+          doctorId={doctorId}
+          type={type}
+          method={method}
           onSuccess={onSuccess}
           onError={onError}
           onClose={() => setShowModal(false)}
