@@ -40,7 +40,6 @@ export const DoctorAppointments = () => {
     const [conversationText, setConversationText] = useState("");
     const [conversationLoading, setConversationLoading] = useState(false);
     const [conversationError, setConversationError] = useState("");
-    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -167,7 +166,6 @@ export const DoctorAppointments = () => {
         setConversationLoading(true);
         setConversationError("");
         setConversationText("");
-        setSelectedAppointmentId(appointmentId);
         setShowConversation(true);
         try {
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type JSX, MouseEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, type JSX } from 'react';
 import { useParams } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import io, { Socket } from 'socket.io-client';
@@ -12,7 +12,6 @@ function RoomPage(): JSX.Element {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
 
-  const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [joinStatus, setJoinedStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -31,7 +30,7 @@ function RoomPage(): JSX.Element {
   }, [conversation]);
 
   // Drag handlers
-  const handleDragStart = (e: MouseEvent<HTMLDivElement>) => {
+  const handleDragStart = (e: any) => {
     setDragging(true);
     dragOffset.current = {
       x: e.clientX - popupPos.x,
@@ -102,10 +101,6 @@ function RoomPage(): JSX.Element {
 
       socket.on('transcript', (data: any) => {
         console.log('Received transcript:', data);
-        setTranscript(prev => {
-          const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
-          return newTranscript;
-        });
         if (typeof data === 'object' && data.user && data.text) {
           setConversation(prev => {
             const line = `${data.user}: ${data.text}`;
@@ -310,9 +305,11 @@ function RoomPage(): JSX.Element {
         layout: "Grid",
         onJoinRoom: () => {
           console.log('Successfully joined room:', roomId);
+          setJoinedStatus("connected");
         },
         onLeaveRoom: () => {
           console.log('Left room:', roomId);
+          setJoinedStatus("disconnected")
           // Save conversation automatically when meeting ends
           if (socketRef.current && conversationRef.current.trim()) {
             console.log('Saving conversation on leave:', conversationRef.current);
@@ -335,11 +332,11 @@ function RoomPage(): JSX.Element {
   }, [roomId, stopTranscription, currentUser]);
 
   return (
-    <div className="relative h-screen flex flex-col">
-      <div ref={containerRef} className="w-full flex-1" />
+    <div className="relative h-full flex flex-col">
+      <div ref={containerRef} className="w-full h-full flex-1" />
 
       {/* Draggable Live Transcript Popup - left bottom */}
-      <div
+      {joinStatus == "connected" && <div
         className="fixed z-50 pointer-events-none"
         style={{
           left: popupPos.x,
@@ -369,7 +366,7 @@ function RoomPage(): JSX.Element {
             >
               {isTranscribing ? 'Stop' : 'Start'}
             </button>
-            
+
           </div>
           {error && (
             <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
@@ -388,7 +385,7 @@ function RoomPage(): JSX.Element {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

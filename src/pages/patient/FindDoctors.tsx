@@ -210,7 +210,7 @@ export const FindDoctors = () => {
     }
 
     // Generate time slots from 9 AM to 5 PM
-    for (let hour = 9; hour < 20; hour++) {
+    for (let hour = 9; hour < 24; hour++) {
       for (let minute of [0, 30]) {
         // Skip times in the past for today
         if (

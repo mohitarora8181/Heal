@@ -40,7 +40,6 @@ export const Appointments = () => {
   const [conversationText, setConversationText] = useState("");
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState("");
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,7 +60,8 @@ export const Appointments = () => {
         }
 
         const data = await response.json();
-        setAppointments(data || []);
+        const sortedData = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        setAppointments(sortedData || []);
       } catch (err) {
         console.error("Error fetching appointments:", err);
         setError(
@@ -133,7 +133,6 @@ export const Appointments = () => {
     setConversationLoading(true);
     setConversationError("");
     setConversationText("");
-    setSelectedAppointmentId(appointmentId);
     setShowConversation(true);
     try {
       const response = await fetch(
@@ -156,7 +155,7 @@ export const Appointments = () => {
 
   // Get all appointments, sorted by date (closest first)
   const allAppointments = [...appointments].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   if (!currentUser) return null;
@@ -284,37 +283,37 @@ export const Appointments = () => {
                           </div>
 
                           <div className="mt-4 flex justify-end space-x-2">
-  {(appointment.type === "video" || appointment.type === "audio") && (
-    <Button
-      variant="primary"
-      size="sm"
-      disabled={appointment.status == "completed"}
-      onClick={() =>
-        joinMeeting(
-          appointment._id,
-          appointment.date,
-          appointment.duration
-        )
-      }
-    >
-      {appointment.status == "completed"
-        ? "Attended"
-        : appointment.type === "video"
-        ? "Join Video Call"
-        : "Join Audio Call"}
-    </Button>
-  )}
-  {/* View Conversation Button - only show if appointment is completed */}
-  {appointment.status === "completed" && (
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={() => fetchConversation(appointment._id)}
-    >
-      View Conversation
-    </Button>
-  )}
-</div>
+                            {(appointment.type === "video" || appointment.type === "audio") && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={appointment.status == "completed"}
+                                onClick={() =>
+                                  joinMeeting(
+                                    appointment._id,
+                                    appointment.date,
+                                    appointment.duration
+                                  )
+                                }
+                              >
+                                {appointment.status == "completed"
+                                  ? "Attended"
+                                  : appointment.type === "video"
+                                    ? "Join Video Call"
+                                    : "Join Audio Call"}
+                              </Button>
+                            )}
+                            {/* View Conversation Button - only show if appointment is completed */}
+                            {appointment.status === "completed" && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => fetchConversation(appointment._id)}
+                              >
+                                View Conversation
+                              </Button>
+                            )}
+                          </div>
                         </motion.div>
                       );
                     })}
