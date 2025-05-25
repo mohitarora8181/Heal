@@ -59,6 +59,15 @@
 
 ---
 
+## Screenshots
+![Auth Page](public/images/auth_page.png)
+![Patient Dashboard](public/images/dashboard.png)
+![Appointments](public/images/appointments.png)
+![Find Doctor](public/images/find-doctor.png)
+![Messages](public/images/messages.png)
+![alt text](public/images/medical-records.png)
+![alt text](public/images/prescriptions.png)
+
 ## 🧰 Tech Stack
 
 | Layer        | Technologies Used                           |
@@ -82,6 +91,112 @@
 - HIPAA & GDPR compliant
 
 ---
+
+## 🛠️ Backend Routes
+
+### ✅ Health Check
+
+- `GET /health`  
+  Example: [`https://heal-backend-one.vercel.app/health`](https://heal-backend-one.vercel.app/health)
+
+---
+
+### 🔐 Authentication Routes (`/auth`)
+
+| Method | Route           | Description          |
+|--------|------------------|----------------------|
+| POST   | /register        | Register a new user  |
+| POST   | /login           | Login user           |
+| GET    | /verify-token    | Verify JWT token     |
+
+---
+
+### 👥 User Routes (`/users`)
+
+| Method | Route        | Middleware     | Description              |
+|--------|--------------|----------------|--------------------------|
+| GET    | /            | `authMiddleware` | Get all users           |
+| GET    | /:id         | `authMiddleware` | Get user by ID          |
+
+---
+
+### 💬 Conversation Routes (`/conversations`)
+
+| Method | Route                  | Description                       |
+|--------|------------------------|-----------------------------------|
+| GET    | /                      | Get all conversations             |
+| GET    | /unread                | Get unread message count          |
+| GET    | /:id/messages          | Get messages by conversation ID   |
+| POST   | /                      | Start a new conversation          |
+
+---
+
+### 📅 Appointment Routes (`/appointments`)
+
+| Method | Route                         | Description                            |
+|--------|-------------------------------|----------------------------------------|
+| GET    | /:userId                      | Get appointments by user ID            |
+| POST   | /                             | Create new appointment                 |
+| PUT    | /:appointmentId               | Update appointment status              |
+
+---
+
+### 📝 Medical Records Routes (`/medical-records`)
+
+| Method | Route                        | Description                            |
+|--------|------------------------------|----------------------------------------|
+| POST   | /                            | Create new medical record              |
+| GET    | /:patientId                  | Get records for a specific patient     |
+| DELETE | /:recordId                   | Delete a medical record                |
+| PUT    | /:recordId                   | Update a medical record                |
+| POST   | /upload                      | Upload a file (e.g., reports, scans)   |
+
+---
+
+### 💳 Payment Routes (`/payments`)
+
+| Method | Route                                      | Description                          |
+|--------|--------------------------------------------|--------------------------------------|
+| GET    | /square-config                             | Get Square payment config            |
+| POST   | /makePayment                               | Make a new payment                   |
+| GET    | /:userId/history                           | Get user payment history             |
+| GET    | /totalPaidByPatient/:userId                | Get total amount paid by patient     |
+
+---
+
+### 🧠 AI Response Route (`/ai-response`)
+
+| Method | Route | Description         |
+|--------|-------|---------------------|
+| POST   | /     | Generate AI response|
+
+---
+
+### 💊 Prescription Routes (`/prescriptions`)
+
+| Method | Route    | Description                        |
+|--------|----------|------------------------------------|
+| POST   | /        | Create a prescription              |
+| GET    | /        | Get prescriptions by user ID       |
+| PUT    | /:id     | Update a prescription              |
+| DELETE | /:id     | Delete a prescription              |
+
+---
+
+### 📜 Transcription Routes (`/transcriptions`)
+
+| Method | Route                                      | Description                       |
+|--------|--------------------------------------------|-----------------------------------|
+| GET    | /chat-summary-all                          | Get all chat summaries            |
+| GET    | /chat-summary/room/:roomId                 | Get summary by Room ID            |
+
+---
+
+## 🔌 Socket Services
+
+### 🎤 Live Transcription Service
+### 💬 Live Real time chat
+
 
 ## ⚙️ Installation (Developer Setup)
 
