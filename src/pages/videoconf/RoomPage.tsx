@@ -15,6 +15,7 @@ function RoomPage(): JSX.Element {
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [joinStatus, setJoinedStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
   const [conversation, setConversation] = useState<string>("");
   const [popupPos, setPopupPos] = useState({ x: 32, y: 120 });
@@ -72,6 +73,7 @@ function RoomPage(): JSX.Element {
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });
+
 
       const socket = socketRef.current;
 

@@ -52,6 +52,7 @@ export const FindDoctors = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [readyForPayment, setReadyForPayment] = useState(false);
 
   const handleDateChange: CalendarProps["onChange"] = (value) => {
     if (value instanceof Date) {
@@ -89,7 +90,6 @@ export const FindDoctors = () => {
       window.location.href = `/patient/messages?conversation=${conversation._id}`;
     } catch (error) {
       console.error("Error starting conversation:", error);
-      // You could add a toast notification here
     }
   };
 
@@ -121,11 +121,8 @@ export const FindDoctors = () => {
         }
 
         const responseData = await response.json();
-
-        // Extract doctors from the users array in the response
         const data = responseData.users || [];
 
-        // Map API response to Doctor interface
         const fetchedDoctors: Doctor[] = data.map((doc: any) => ({
           _id: doc._id,
           name: doc.name || "Unknown",
@@ -140,12 +137,11 @@ export const FindDoctors = () => {
 
         setDoctors(fetchedDoctors);
 
-        // Extract unique specializations (handling possibly empty specialization fields)
         const specs = Array.from(
           new Set(
             fetchedDoctors
               .map((doctor) => doctor.specialization)
-              .filter((spec) => spec) // Remove empty values
+              .filter((spec) => spec)
           )
         );
         setSpecializations(specs.length > 0 ? specs : ["General Practitioner"]);
@@ -173,13 +169,13 @@ export const FindDoctors = () => {
   const handleBookAppointment = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setShowBookingModal(true);
-    // Reset booking form
     setSelectedDate(new Date());
     setSelectedTime("");
     setAppointmentType("video");
     setIsUrgent(false);
     setBookingError("");
     setBookingSuccess(false);
+    setReadyForPayment(false);
   };
 
   const handleViewProfile = (doctorId: string) => {
@@ -189,16 +185,54 @@ export const FindDoctors = () => {
   const closeBookingModal = () => {
     setShowBookingModal(false);
     setSelectedDoctor(null);
+    setReadyForPayment(false);
   };
 
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 9; hour < 17; hour++) {
-      for (let minute of ["00", "30"]) {
-        const time = `${hour}:${minute}`;
-        slots.push(time);
+
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    let startHour = 9; // Default start hour (9 AM)
+    let startMinute = 0; // Default start minute
+
+    if (isToday) {
+      startHour = now.getHours();
+
+      // If we're in the middle of an hour, move to next 30-min slot
+      if (now.getMinutes() >= 0 && now.getMinutes() < 30) {
+        startMinute = 30;
+      } else {
+        startMinute = 0;
+        startHour += 1; // Move to next hour
       }
     }
+
+    // Generate time slots from 9 AM to 5 PM
+    for (let hour = 9; hour < 20; hour++) {
+      for (let minute of [0, 30]) {
+        // Skip times in the past for today
+        if (isToday && (hour < startHour || (hour === startHour && minute < startMinute))) {
+          continue;
+        }
+
+        // Format in 24-hour format for value, but display in 12-hour format
+        const formattedMinute = minute === 0 ? "00" : "30";
+        const timeValue = `${hour}:${formattedMinute}`; // 24-hour format for value
+
+        // Create 12-hour format display
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+        const amPm = hour < 12 ? "AM" : "PM";
+        const displayTime = `${displayHour}:${formattedMinute} ${amPm}`;
+
+        slots.push({
+          value: timeValue,
+          display: displayTime
+        });
+      }
+    }
+
     return slots;
   };
 
@@ -215,11 +249,14 @@ export const FindDoctors = () => {
       return;
     }
 
+    setReadyForPayment(true);
+  };
+
+  const createAppointment = async () => {
     try {
       setBookingLoading(true);
       setBookingError("");
 
-      // Combine date and time for the appointment
       const [hours, minutes] = selectedTime.split(":");
       const appointmentDate = new Date(selectedDate);
       appointmentDate.setHours(Number(hours), Number(minutes), 0);
@@ -236,9 +273,9 @@ export const FindDoctors = () => {
         },
         body: JSON.stringify({
           patientId: currentUser?._id,
-          doctorId: selectedDoctor._id,
+          doctorId: selectedDoctor?._id,
           date: appointmentDate.toISOString(),
-          duration: 30, // 30 minutes by default
+          duration: 30,
           type: appointmentType,
           isUrgent: isUrgent,
         }),
@@ -253,7 +290,6 @@ export const FindDoctors = () => {
       setBookingSuccess(true);
       setTimeout(() => {
         closeBookingModal();
-        // Redirect to appointments page
         window.location.href = "/patient/appointments";
       }, 2000);
     } catch (err) {
@@ -304,8 +340,8 @@ export const FindDoctors = () => {
                 <div className="space-y-2">
                   <button
                     className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === "all"
-                      ? "bg-primary-50 text-primary-700"
-                      : "hover:bg-gray-50"
+                        ? "bg-primary-50 text-primary-700"
+                        : "hover:bg-gray-50"
                       }`}
                     onClick={() => setSelectedSpecialization("all")}
                   >
@@ -315,8 +351,8 @@ export const FindDoctors = () => {
                     <button
                       key={spec}
                       className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
-                        ? "bg-primary-50 text-primary-700"
-                        : "hover:bg-gray-50"
+                          ? "bg-primary-50 text-primary-700"
+                          : "hover:bg-gray-50"
                         }`}
                       onClick={() => setSelectedSpecialization(spec)}
                     >
@@ -529,17 +565,17 @@ export const FindDoctors = () => {
                       Select Time
                     </h4>
                     <div className="grid grid-cols-4 gap-2">
-                      {timeSlots.map((time) => (
+                      {timeSlots.map((slot) => (
                         <Button
-                          key={time}
+                          key={slot.value}
                           variant={
-                            selectedTime === time ? "primary" : "outline"
+                            selectedTime === slot.value ? "primary" : "outline"
                           }
                           size="sm"
-                          onClick={() => setSelectedTime(time)}
+                          onClick={() => setSelectedTime(slot.value)}
                           className="justify-center"
                         >
-                          {`${time.split(":")[0]}:${time.split(":")[1]}`}
+                          {slot.display}
                         </Button>
                       ))}
                     </div>
@@ -604,24 +640,21 @@ export const FindDoctors = () => {
                     >
                       Cancel
                     </Button>
-                    <Button
-                      onClick={submitAppointmentRequest}
-                      disabled={bookingLoading}
-                    >
-                      {bookingLoading ? (
-                        <>
-                          <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-white rounded-full"></span>
-                          Booking...
-                        </>
-                      ) : (
-                        <SquarePaymentButton
-                          amount={5000}
-                          onSuccess={() => submitAppointmentRequest()}
-                          onError={(error) => setBookingError(error)}
-                          onClose={() => { }}
-                        />
-                      )}
-                    </Button>
+                    {readyForPayment ? (
+                      <SquarePaymentButton
+                        amount={5000}
+                        onSuccess={createAppointment}
+                        onError={(error) => setBookingError(error)}
+                        onClose={() => setReadyForPayment(false)}
+                      />
+                    ) : (
+                      <Button
+                        onClick={submitAppointmentRequest}
+                        disabled={bookingLoading || !selectedTime}
+                      >
+                        Continue to Payment
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
