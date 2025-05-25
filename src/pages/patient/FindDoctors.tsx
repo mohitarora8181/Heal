@@ -213,7 +213,10 @@ export const FindDoctors = () => {
     for (let hour = 9; hour < 20; hour++) {
       for (let minute of [0, 30]) {
         // Skip times in the past for today
-        if (isToday && (hour < startHour || (hour === startHour && minute < startMinute))) {
+        if (
+          isToday &&
+          (hour < startHour || (hour === startHour && minute < startMinute))
+        ) {
           continue;
         }
 
@@ -228,7 +231,7 @@ export const FindDoctors = () => {
 
         slots.push({
           value: timeValue,
-          display: displayTime
+          display: displayTime,
         });
       }
     }
@@ -339,10 +342,11 @@ export const FindDoctors = () => {
                 </h3>
                 <div className="space-y-2">
                   <button
-                    className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === "all"
+                    className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                      selectedSpecialization === "all"
                         ? "bg-primary-50 text-primary-700"
                         : "hover:bg-gray-50"
-                      }`}
+                    }`}
                     onClick={() => setSelectedSpecialization("all")}
                   >
                     All Specializations
@@ -350,10 +354,11 @@ export const FindDoctors = () => {
                   {specializations.map((spec) => (
                     <button
                       key={spec}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                        selectedSpecialization === spec
                           ? "bg-primary-50 text-primary-700"
                           : "hover:bg-gray-50"
-                        }`}
+                      }`}
                       onClick={() => setSelectedSpecialization(spec)}
                     >
                       {spec}
@@ -443,7 +448,7 @@ export const FindDoctors = () => {
                       </div>
 
                       {doctor.qualifications &&
-                        doctor.qualifications.length > 0 ? (
+                      doctor.qualifications.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {doctor.qualifications.map((qual, index) => (
                             <div
@@ -643,6 +648,10 @@ export const FindDoctors = () => {
                     {readyForPayment ? (
                       <SquarePaymentButton
                         amount={5000}
+                        patientId={currentUser?._id || ""}
+                        doctorId={selectedDoctor._id}
+                        type={appointmentType}
+                        method={"card"}
                         onSuccess={createAppointment}
                         onError={(error) => setBookingError(error)}
                         onClose={() => setReadyForPayment(false)}
