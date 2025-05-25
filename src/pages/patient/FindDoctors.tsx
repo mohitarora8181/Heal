@@ -52,6 +52,7 @@ export const FindDoctors = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [readyForPayment, setReadyForPayment] = useState(false);
 
   const handleDateChange: CalendarProps["onChange"] = (value) => {
     if (value instanceof Date) {
@@ -89,7 +90,6 @@ export const FindDoctors = () => {
       window.location.href = `/patient/messages?conversation=${conversation._id}`;
     } catch (error) {
       console.error("Error starting conversation:", error);
-      // You could add a toast notification here
     }
   };
 
@@ -121,11 +121,8 @@ export const FindDoctors = () => {
         }
 
         const responseData = await response.json();
-
-        // Extract doctors from the users array in the response
         const data = responseData.users || [];
 
-        // Map API response to Doctor interface
         const fetchedDoctors: Doctor[] = data.map((doc: any) => ({
           _id: doc._id,
           name: doc.name || "Unknown",
@@ -140,12 +137,11 @@ export const FindDoctors = () => {
 
         setDoctors(fetchedDoctors);
 
-        // Extract unique specializations (handling possibly empty specialization fields)
         const specs = Array.from(
           new Set(
             fetchedDoctors
               .map((doctor) => doctor.specialization)
-              .filter((spec) => spec) // Remove empty values
+              .filter((spec) => spec)
           )
         );
         setSpecializations(specs.length > 0 ? specs : ["General Practitioner"]);
@@ -173,13 +169,13 @@ export const FindDoctors = () => {
   const handleBookAppointment = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setShowBookingModal(true);
-    // Reset booking form
     setSelectedDate(new Date());
     setSelectedTime("");
     setAppointmentType("video");
     setIsUrgent(false);
     setBookingError("");
     setBookingSuccess(false);
+    setReadyForPayment(false);
   };
 
   const handleViewProfile = (doctorId: string) => {
@@ -189,6 +185,7 @@ export const FindDoctors = () => {
   const closeBookingModal = () => {
     setShowBookingModal(false);
     setSelectedDoctor(null);
+    setReadyForPayment(false);
   };
 
   const generateTimeSlots = () => {
@@ -215,11 +212,14 @@ export const FindDoctors = () => {
       return;
     }
 
+    setReadyForPayment(true);
+  };
+
+  const createAppointment = async () => {
     try {
       setBookingLoading(true);
       setBookingError("");
 
-      // Combine date and time for the appointment
       const [hours, minutes] = selectedTime.split(":");
       const appointmentDate = new Date(selectedDate);
       appointmentDate.setHours(Number(hours), Number(minutes), 0);
@@ -236,9 +236,9 @@ export const FindDoctors = () => {
         },
         body: JSON.stringify({
           patientId: currentUser?._id,
-          doctorId: selectedDoctor._id,
+          doctorId: selectedDoctor?._id,
           date: appointmentDate.toISOString(),
-          duration: 30, // 30 minutes by default
+          duration: 30,
           type: appointmentType,
           isUrgent: isUrgent,
         }),
@@ -253,7 +253,6 @@ export const FindDoctors = () => {
       setBookingSuccess(true);
       setTimeout(() => {
         closeBookingModal();
-        // Redirect to appointments page
         window.location.href = "/patient/appointments";
       }, 2000);
     } catch (err) {
@@ -303,10 +302,11 @@ export const FindDoctors = () => {
                 </h3>
                 <div className="space-y-2">
                   <button
-                    className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === "all"
-                      ? "bg-primary-50 text-primary-700"
-                      : "hover:bg-gray-50"
-                      }`}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                      selectedSpecialization === "all"
+                        ? "bg-primary-50 text-primary-700"
+                        : "hover:bg-gray-50"
+                    }`}
                     onClick={() => setSelectedSpecialization("all")}
                   >
                     All Specializations
@@ -314,10 +314,11 @@ export const FindDoctors = () => {
                   {specializations.map((spec) => (
                     <button
                       key={spec}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
-                        ? "bg-primary-50 text-primary-700"
-                        : "hover:bg-gray-50"
-                        }`}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                        selectedSpecialization === spec
+                          ? "bg-primary-50 text-primary-700"
+                          : "hover:bg-gray-50"
+                      }`}
                       onClick={() => setSelectedSpecialization(spec)}
                     >
                       {spec}
@@ -407,7 +408,7 @@ export const FindDoctors = () => {
                       </div>
 
                       {doctor.qualifications &&
-                        doctor.qualifications.length > 0 ? (
+                      doctor.qualifications.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {doctor.qualifications.map((qual, index) => (
                             <div
@@ -539,7 +540,7 @@ export const FindDoctors = () => {
                           onClick={() => setSelectedTime(time)}
                           className="justify-center"
                         >
-                          {`${time.split(":")[0]}:${time.split(":")[1]}`}
+                          {time}
                         </Button>
                       ))}
                     </div>
@@ -604,24 +605,21 @@ export const FindDoctors = () => {
                     >
                       Cancel
                     </Button>
-                    <Button
-                      onClick={submitAppointmentRequest}
-                      disabled={bookingLoading}
-                    >
-                      {bookingLoading ? (
-                        <>
-                          <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-white rounded-full"></span>
-                          Booking...
-                        </>
-                      ) : (
-                        <SquarePaymentButton
-                          amount={5000}
-                          onSuccess={() => submitAppointmentRequest()}
-                          onError={(error) => setBookingError(error)}
-                          onClose={() => { }}
-                        />
-                      )}
-                    </Button>
+                    {readyForPayment ? (
+                      <SquarePaymentButton
+                        amount={5000}
+                        onSuccess={createAppointment}
+                        onError={(error) => setBookingError(error)}
+                        onClose={() => setReadyForPayment(false)}
+                      />
+                    ) : (
+                      <Button
+                        onClick={submitAppointmentRequest}
+                        disabled={bookingLoading || !selectedTime}
+                      >
+                        Continue to Payment
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
