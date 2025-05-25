@@ -11,20 +11,53 @@ function RoomPage(): JSX.Element {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
-  // Refs for resizing
-  const resizableRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [joinStatus, setJoinedStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
-  // State for panel height
+  //@ts-ignore
   const [transcriptHeight, setTranscriptHeight] = useState<string>('30vh');
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const { currentUser } = useAuth();
   const [conversation, setConversation] = useState<string>("");
+  const [popupPos, setPopupPos] = useState({ x: 32, y: 120 });
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+
+
+  const handleDragStart = (e: any) => {
+    setDragging(true);
+    dragOffset.current = {
+      x: e.clientX - popupPos.x,
+      y: e.clientY - popupPos.y,
+    };
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const handleDrag = (e: any) => {
+      if (!dragging) return;
+      setPopupPos({
+        x: Math.max(0, e.clientX - dragOffset.current.x),
+        y: Math.max(0, e.clientY - dragOffset.current.y),
+      });
+    };
+    const handleDragEnd = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+    };
+    if (dragging) {
+      window.addEventListener('mousemove', handleDrag);
+      window.addEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [dragging]);
 
 
   useEffect(() => {
@@ -40,6 +73,7 @@ function RoomPage(): JSX.Element {
         reconnectionDelay: 1000,
       });
 
+
       const socket = socketRef.current;
 
       socket.on('connect', () => {
@@ -47,6 +81,11 @@ function RoomPage(): JSX.Element {
         setConnectionStatus('connected');
         setError("");
       });
+
+      if (currentUser?.name && roomId) {
+        console.log('Joining room:', roomId, 'as user:', currentUser.name);
+        socket.emit('join_room', { roomId, user: currentUser.name });
+      }
 
       socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
@@ -63,15 +102,15 @@ function RoomPage(): JSX.Element {
       socket.on('transcript', (data: any) => {
         console.log('Received transcript:', data);
         setTranscript(prev => {
-        const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
-        return newTranscript;
-      });
-        if (typeof data === 'object' && data.user && data.text) {
-        setConversation(prev => {
-          const line = `${data.user}: ${data.text}`;
-          return prev ? `${prev}\n${line}` : line;
+          const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
+          return newTranscript;
         });
-      }
+        if (typeof data === 'object' && data.user && data.text) {
+          setConversation(prev => {
+            const line = `${data.user}: ${data.text}`;
+            return prev ? `${prev}\n${line}` : line;
+          });
+        }
       });
 
 
@@ -253,7 +292,7 @@ function RoomPage(): JSX.Element {
 
   // Add resize event handlers
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: any) => {
       if (!isResizing) return;
 
       // Calculate height based on mouse position
@@ -292,12 +331,12 @@ function RoomPage(): JSX.Element {
     };
   }, [isResizing]);
 
-  const saveConversation = useCallback(()=>{
+  const saveConversation = useCallback(() => {
     if (socketRef.current && roomId) {
       console.log('Saving conversation:', conversation);
-    socketRef.current.emit('save_conversation', { roomId, conversation });
-  }
-  },[conversation, roomId]);
+      socketRef.current.emit('save_conversation', { roomId, conversation });
+    }
+  }, [conversation, roomId]);
 
   useEffect(() => {
     if (!roomId || !containerRef.current || !currentUser?.name) return;
@@ -325,9 +364,11 @@ function RoomPage(): JSX.Element {
           maxUsers: 10,
           layout: "Grid",
           onJoinRoom: () => {
+            setJoinedStatus("connected");
             console.log('Successfully joined room:', roomId);
           },
           onLeaveRoom: () => {
+            setJoinedStatus("disconnected");
             console.log('Left room:', roomId);
           }
         });
@@ -345,154 +386,71 @@ function RoomPage(): JSX.Element {
   }, [roomId, stopTranscription, currentUser]);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div ref={containerRef} style={{ width: "100%", flex: 1 }} />
+    <div className="relative h-full flex flex-col">
+      <div ref={containerRef} className="w-full h-full flex-1" />
 
-      <div
-        ref={resizableRef}
+      {/* Draggable Live Transcript Popup - left bottom */}
+      {joinStatus == "connected" && <div
+        className="fixed z-50 pointer-events-none"
         style={{
-          height: transcriptHeight,
-          display: 'flex',
-          flexDirection: 'column',
-          borderTop: '2px solid #ddd',
-          backgroundColor: '#f8f9fa',
-          position: 'relative',
-          minHeight: '100px',
-          transition: isResizing ? 'none' : 'height 0.1s ease'
+          left: popupPos.x,
+          top: popupPos.y,
+          bottom: 'auto',
         }}
       >
-        {/* Resize handle */}
         <div
-          ref={dragHandleRef}
-          style={{
-            position: 'absolute',
-            top: '-6px',
-            left: 0,
-            right: 0,
-            height: '12px',
-            cursor: 'ns-resize',
-            zIndex: 10,
-            touchAction: 'none'
-          }}
-          onMouseDown={(e) => {
-            setIsResizing(true);
-            e.preventDefault();
-          }}
-          onTouchStart={(e) => {
-            setIsResizing(true);
-            e.preventDefault();
-          }}
+          className="min-w-[320px] max-w-xl bg-white/95 rounded-2xl shadow-2xl border border-gray-200 pointer-events-auto px-6 py-4 flex flex-col gap-2"
+          style={{ cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
         >
+          {/* Drag handle */}
           <div
-            style={{
-              height: '4px',
-              backgroundColor: '#ccc',
-              margin: '4px auto',
-              width: '60px',
-              borderRadius: '2px'
-            }}
-          />
-        </div>
-
-        <div style={{
-          padding: '10px',
-          borderBottom: '1px solid #ddd',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: 'white',
-          flexWrap: 'wrap'
-        }}>
-          <h3 style={{ margin: 0, fontSize: '16px' }}>Live Transcript</h3>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: connectionStatus === 'connected' ? '#28a745' :
-              connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
-          }} />
-          <span style={{ fontSize: '12px', color: '#666' }}>
-            {connectionStatus === 'connected' ? 'Connected' :
-              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-          </span>
-          <button
-            onClick={isTranscribing ? stopTranscription : startTranscription}
-            disabled={connectionStatus !== 'connected'}
-            style={{
-              padding: '5px 15px',
-              backgroundColor: isTranscribing ? '#dc3545' : '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: connectionStatus === 'connected' ? 'pointer' : 'not-allowed',
-              fontSize: '12px',
-              opacity: connectionStatus === 'connected' ? 1 : 0.6
-            }}
+            className="flex items-center gap-3 mb-1 flex-wrap cursor-move"
+            onMouseDown={handleDragStart}
           >
-            {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
-          </button>
-          <button
-            onClick={clearTranscript}
-            style={{
-              padding: '5px 15px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Clear
-          </button>
-          <button
-  onClick={saveConversation}
-  style={{
-    padding: '5px 15px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '12px'
-  }}
->
-  Save Conversation
-</button>
-        </div>
-
-        {error && (
-          <div style={{
-            padding: '8px 10px',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            borderBottom: '1px solid #f5c6cb',
-            fontSize: '12px'
-          }}>
-            ⚠️ {error}
+            <h3 className="m-0 text-base font-semibold text-indigo-700 select-none">Live Transcript</h3>
+            <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-600 select-none">
+              {connectionStatus === 'connected' ? 'Connected' :
+                connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            </span>
+            <button
+              onClick={isTranscribing ? stopTranscription : startTranscription}
+              disabled={connectionStatus !== 'connected'}
+              className={`px-3 py-1 rounded text-xs font-medium ml-2 ${isTranscribing ? 'bg-red-600' : 'bg-green-600'} text-white disabled:opacity-60 disabled:cursor-not-allowed`}
+            >
+              {isTranscribing ? 'Stop' : 'Start'}
+            </button>
+            <button
+              onClick={clearTranscript}
+              className="px-3 py-1 rounded bg-gray-600 text-white text-xs font-medium ml-1"
+            >
+              Clear
+            </button>
+            <button
+              onClick={saveConversation}
+              className="px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium ml-1"
+            >
+              Save
+            </button>
           </div>
-        )}
-        <div style={{
-          flex: 1,
-          padding: '10px',
-          overflowY: 'auto',
-          backgroundColor: 'white',
-          fontSize: '14px',
-          lineHeight: '1.4'
-        }}>
-          {transcript ? (
-            <div style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-              {transcript}
-            </div>
-          ) : (
-            <div style={{ color: '#999', fontStyle: 'italic' }}>
-              {isTranscribing ? 'Listening...' :
-                connectionStatus !== 'connected' ? 'Please wait for connection...' :
-                  'Click "Start Transcription" to begin'}
+          {error && (
+            <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
+              ⚠️ {error}
             </div>
           )}
+          <div className="min-h-[40px] max-h-[120px] overflow-y-auto bg-indigo-50 rounded-lg px-3 py-2 text-sm leading-relaxed text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
+            {transcript ? (
+              <div>{transcript}</div>
+            ) : (
+              <div className="text-gray-400 italic">
+                {isTranscribing ? 'Listening...' :
+                  connectionStatus !== 'connected' ? 'Please wait for connection...' :
+                    'Click "Start" to begin live transcription'}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
