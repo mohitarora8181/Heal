@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type JSX } from 'react';
+import { useEffect, useRef, useState, useCallback, type JSX, MouseEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import io, { Socket } from 'socket.io-client';
@@ -11,25 +11,25 @@ function RoomPage(): JSX.Element {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
-  // Refs for resizing
-  const resizableRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
-  // State for panel height
-  const [transcriptHeight, setTranscriptHeight] = useState<string>('30vh');
-  const [isResizing, setIsResizing] = useState<boolean>(false);
-
-  const { currentUser } = useAuth();
   const [conversation, setConversation] = useState<string>("");
   const [popupPos, setPopupPos] = useState({ x: 32, y: 120 });
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
+  const { currentUser } = useAuth();
 
+  // Keep a ref to always have the latest conversation for onLeaveRoom
+  const conversationRef = useRef(conversation);
+  useEffect(() => {
+    conversationRef.current = conversation;
+  }, [conversation]);
+
+  // Drag handlers
   const handleDragStart = (e: MouseEvent<HTMLDivElement>) => {
     setDragging(true);
     dragOffset.current = {
@@ -61,11 +61,9 @@ function RoomPage(): JSX.Element {
     };
   }, [dragging]);
 
-
   useEffect(() => {
     if (!socketRef.current) {
       setConnectionStatus('connecting');
-
       socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
         upgrade: true,
@@ -75,7 +73,6 @@ function RoomPage(): JSX.Element {
         reconnectionDelay: 1000,
       });
 
-      
       const socket = socketRef.current;
 
       socket.on('connect', () => {
@@ -84,7 +81,7 @@ function RoomPage(): JSX.Element {
         setError("");
       });
 
-      if(currentUser?.name && roomId) {
+      if (currentUser?.name && roomId) {
         console.log('Joining room:', roomId, 'as user:', currentUser.name);
         socket.emit('join_room', { roomId, user: currentUser.name });
       }
@@ -104,18 +101,16 @@ function RoomPage(): JSX.Element {
       socket.on('transcript', (data: any) => {
         console.log('Received transcript:', data);
         setTranscript(prev => {
-        const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
-        return newTranscript;
-      });
-        if (typeof data === 'object' && data.user && data.text) {
-        setConversation(prev => {
-          const line = `${data.user}: ${data.text}`;
-          return prev ? `${prev}\n${line}` : line;
+          const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
+          return newTranscript;
         });
-      }
+        if (typeof data === 'object' && data.user && data.text) {
+          setConversation(prev => {
+            const line = `${data.user}: ${data.text}`;
+            return prev ? `${prev}\n${line}` : line;
+          });
+        }
       });
-
-
 
       socket.on('transcription_error', (error: string) => {
         console.error('Transcription error:', error);
@@ -135,17 +130,15 @@ function RoomPage(): JSX.Element {
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [currentUser, roomId]);
 
   const convertFloat32ToInt16 = useCallback((buffer: Float32Array): ArrayBuffer => {
     const length = buffer.length;
     const result = new Int16Array(length);
-
     for (let i = 0; i < length; i++) {
       const clampedValue = Math.max(-1, Math.min(1, buffer[i]));
       result[i] = Math.round(clampedValue * 0x7FFF);
     }
-
     return result.buffer;
   }, []);
 
@@ -153,16 +146,12 @@ function RoomPage(): JSX.Element {
     if (isTranscribing || !socketRef.current || connectionStatus !== 'connected') {
       return;
     }
-
     try {
       setIsTranscribing(true);
       setError("");
-      console.log('Starting transcription...');
-
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
       }
-
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: { ideal: 16000 },
@@ -292,166 +281,118 @@ function RoomPage(): JSX.Element {
     setError("");
   }, []);
 
-  // Add resize event handlers
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      // Calculate height based on mouse position
-      const containerHeight = window.innerHeight;
-      const newHeight = containerHeight - e.clientY;
-
-      // Set min and max heights (10% - 90% of screen)
-      const minHeight = containerHeight * 0.1;
-      const maxHeight = containerHeight * 0.9;
-
-      const clampedHeight = Math.min(Math.max(newHeight, minHeight), maxHeight);
-      setTranscriptHeight(`${clampedHeight}px`);
-
-      // Prevent text selection during resize
-      e.preventDefault();
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      // Change cursor and disable text selection during resize
-      document.body.style.cursor = 'ns-resize';
-      document.body.style.userSelect = 'none';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
-  const saveConversation = useCallback(()=>{
-    if (socketRef.current && roomId) {
-      console.log('Saving conversation:', conversation);
-    socketRef.current.emit('save_conversation', { roomId, conversation });
-  }
-  },[conversation, roomId]);
-
   useEffect(() => {
     if (!roomId || !containerRef.current || !currentUser?.name) return;
 
-    const initializeConference = () => {
-      const appID = 1043447705;
-      const secret = "b0820d28b88b6d9756c119e1730a0824";
-      const userID = `user_${Math.random().toString(36).slice(2)}`;
-      const userName = currentUser?.name || userID;
+    const appID = 1043447705;
+    const secret = "b0820d28b88b6d9756c119e1730a0824";
+    const userID = `user_${Math.random().toString(36).slice(2)}`;
+    const userName = currentUser?.name || userID;
 
-      try {
-        const KitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-          appID, secret, roomId, userID, userName
-        );
+    let zc: any;
+    try {
+      const KitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+        appID, secret, roomId, userID, userName
+      );
 
-        const zc = ZegoUIKitPrebuilt.create(KitToken);
-        zc.joinRoom({
-          container: containerRef.current!,
-          scenario: {
-            mode: ZegoUIKitPrebuilt.VideoConference,
-          },
-          showScreenSharingButton: true,
-          showTextChat: true,
-          showUserList: true,
-          maxUsers: 10,
-          layout: "Grid",
-          onJoinRoom: () => {
-            console.log('Successfully joined room:', roomId);
-          },
-          onLeaveRoom: () => {
-            console.log('Left room:', roomId);
+      zc = ZegoUIKitPrebuilt.create(KitToken);
+      zc.joinRoom({
+        container: containerRef.current!,
+        scenario: {
+          mode: ZegoUIKitPrebuilt.VideoConference,
+        },
+        showScreenSharingButton: true,
+        showTextChat: true,
+        showUserList: true,
+        maxUsers: 10,
+        layout: "Grid",
+        onJoinRoom: () => {
+          console.log('Successfully joined room:', roomId);
+        },
+        onLeaveRoom: () => {
+          console.log('Left room:', roomId);
+          // Save conversation automatically when meeting ends
+          if (socketRef.current && conversationRef.current.trim()) {
+            console.log('Saving conversation on leave:', conversationRef.current);
+            socketRef.current.emit('save_conversation', { roomId, conversation: conversationRef.current });
           }
-        });
-      } catch (error) {
-        console.error('Error initializing video conference:', error);
-        setError('Failed to initialize video conference');
-      }
-    };
-
-    initializeConference();
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing video conference:', error);
+      setError('Failed to initialize video conference');
+    }
 
     return () => {
       stopTranscription();
+      // Optionally leave the room if needed
+      if (zc && typeof zc.leaveRoom === 'function') {
+        zc.leaveRoom();
+      }
     };
   }, [roomId, stopTranscription, currentUser]);
 
   return (
     <div className="relative h-screen flex flex-col">
-    <div ref={containerRef} className="w-full flex-1" />
+      <div ref={containerRef} className="w-full flex-1" />
 
-    {/* Draggable Live Transcript Popup - left bottom */}
-    <div
-  className="fixed z-50 pointer-events-none"
-  style={{
-    left: popupPos.x,
-    top: popupPos.y,
-    bottom: 'auto',
-  }}
->
+      {/* Draggable Live Transcript Popup - left bottom */}
       <div
-        className="min-w-[320px] max-w-xl bg-white/95 rounded-2xl shadow-2xl border border-gray-200 pointer-events-auto px-6 py-4 flex flex-col gap-2"
-        style={{ cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+        className="fixed z-50 pointer-events-none"
+        style={{
+          left: popupPos.x,
+          top: popupPos.y,
+          bottom: 'auto',
+        }}
       >
-        {/* Drag handle */}
         <div
-          className="flex items-center gap-3 mb-1 flex-wrap cursor-move"
-          onMouseDown={handleDragStart}
+          className="min-w-[320px] max-w-xl bg-white/95 rounded-2xl shadow-2xl border border-gray-200 pointer-events-auto px-6 py-4 flex flex-col gap-2"
+          style={{ cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
         >
-          <h3 className="m-0 text-base font-semibold text-indigo-700 select-none">Live Transcript</h3>
-          <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-500'}`} />
-          <span className="text-xs text-gray-600 select-none">
-            {connectionStatus === 'connected' ? 'Connected' :
-              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-          </span>
-          <button
-            onClick={isTranscribing ? stopTranscription : startTranscription}
-            disabled={connectionStatus !== 'connected'}
-            className={`px-3 py-1 rounded text-xs font-medium ml-2 ${isTranscribing ? 'bg-red-600' : 'bg-green-600'} text-white disabled:opacity-60 disabled:cursor-not-allowed`}
+          {/* Drag handle */}
+          <div
+            className="flex items-center gap-3 mb-1 flex-wrap cursor-move"
+            onMouseDown={handleDragStart}
           >
-            {isTranscribing ? 'Stop' : 'Start'}
-          </button>
-          <button
-            onClick={clearTranscript}
-            className="px-3 py-1 rounded bg-gray-600 text-white text-xs font-medium ml-1"
-          >
-            Clear
-          </button>
-          <button
-            onClick={saveConversation}
-            className="px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium ml-1"
-          >
-            Save
-          </button>
-        </div>
-        {error && (
-          <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
-            ⚠️ {error}
+            <h3 className="m-0 text-base font-semibold text-indigo-700 select-none">Live Transcript</h3>
+            <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-600 select-none">
+              {connectionStatus === 'connected' ? 'Connected' :
+                connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            </span>
+            <button
+              onClick={isTranscribing ? stopTranscription : startTranscription}
+              disabled={connectionStatus !== 'connected'}
+              className={`px-3 py-1 rounded text-xs font-medium ml-2 ${isTranscribing ? 'bg-red-600' : 'bg-green-600'} text-white disabled:opacity-60 disabled:cursor-not-allowed`}
+            >
+              {isTranscribing ? 'Stop' : 'Start'}
+            </button>
+            <button
+              onClick={clearTranscript}
+              className="px-3 py-1 rounded bg-gray-600 text-white text-xs font-medium ml-1"
+            >
+              Clear
+            </button>
           </div>
-        )}
-        <div className="min-h-[40px] max-h-[120px] overflow-y-auto bg-indigo-50 rounded-lg px-3 py-2 text-sm leading-relaxed text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
-          {transcript ? (
-            <div>{transcript}</div>
-          ) : (
-            <div className="text-gray-400 italic">
-              {isTranscribing ? 'Listening...' :
-                connectionStatus !== 'connected' ? 'Please wait for connection...' :
-                  'Click "Start" to begin live transcription'}
+          {error && (
+            <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
+              ⚠️ {error}
             </div>
           )}
+          <div className="min-h-[40px] max-h-[120px] overflow-y-auto bg-indigo-50 rounded-lg px-3 py-2 text-sm leading-relaxed text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
+            {conversation ? (
+              <div>{conversation}</div>
+            ) : (
+              <div className="text-gray-400 italic">
+                {isTranscribing ? 'Listening...' :
+                  connectionStatus !== 'connected' ? 'Please wait for connection...' :
+                    'Click "Start" to begin live transcription'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
-  </div>
   );
 }
 
