@@ -28,6 +28,7 @@ interface Appointment {
   duration: number;
   type: "video" | "audio" | "inperson";
   isUrgent: boolean;
+  status: "scheduled" | "completed" | "cancelled"
 }
 
 export const Appointments = () => {
@@ -254,22 +255,23 @@ export const Appointments = () => {
                           <div className="mt-4 flex justify-end space-x-2">
                             {(appointment.type === "video" ||
                               appointment.type === "audio") && (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() =>
-                                  joinMeeting(
-                                    appointment._id,
-                                    appointment.date,
-                                    appointment.duration
-                                  )
-                                }
-                              >
-                                {appointment.type === "video"
-                                  ? "Join Video Call"
-                                  : "Join Audio Call"}
-                              </Button>
-                            )}
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={appointment.status == "completed"}
+                                  onClick={() =>
+                                    joinMeeting(
+                                      appointment._id,
+                                      appointment.date,
+                                      appointment.duration
+                                    )
+                                  }
+                                >
+                                  {appointment.status == "completed" ? "Attended" : appointment.type === "video"
+                                    ? "Join Video Call"
+                                    : "Join Audio Call"}
+                                </Button>
+                              )}
                           </div>
                         </motion.div>
                       );

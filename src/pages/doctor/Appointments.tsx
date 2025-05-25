@@ -267,16 +267,16 @@ export const DoctorAppointments = () => {
                                                                 <Button
                                                                     variant="primary"
                                                                     size="sm"
+                                                                    disabled={appointment.status == "completed"}
                                                                     onClick={() => joinMeeting(
                                                                         appointment._id,
                                                                         appointment.date,
                                                                         appointment.duration
                                                                     )}
                                                                 >
-                                                                    {appointment.type === 'video'
-                                                                        ? <><Video className="h-4 w-4 mr-1" /> Join Video Call</>
-                                                                        : <><Phone className="h-4 w-4 mr-1" /> Join Audio Call</>
-                                                                    }
+                                                                    {appointment.status == "completed" ? "Attended" : appointment.type === "video"
+                                                                        ? "Join Video Call"
+                                                                        : "Join Audio Call"}
                                                                 </Button>
                                                             )}
                                                         </div>
