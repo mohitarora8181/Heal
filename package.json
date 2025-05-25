@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.7",
     "@zegocloud/zego-uikit-prebuilt": "^2.14.3-beta",
+    "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.12.1",
     "lucide-react": "^0.511.0",
