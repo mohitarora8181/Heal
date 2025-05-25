@@ -29,7 +29,6 @@ export const Sidebar = () => {
         { name: 'Appointments', path: '/doctor/appointments', icon: <Calendar size={20} /> },
         { name: 'Patients', path: '/doctor/patients', icon: <User size={20} /> },
         { name: 'Messages', path: '/doctor/messages', icon: <MessageCircle size={20} /> },
-        { name: 'Medical Records', path: '/doctor/records', icon: <FileText size={20} /> },
         { name: 'Prescriptions', path: '/doctor/prescriptions', icon: <FilePlus size={20} /> },
         { name: 'Payments', path: '/doctor/payments', icon: <CreditCard size={20} /> },
     ];

@@ -16,7 +16,6 @@ import { Messages } from "./pages/patient/Messages";
 import { DoctorAppointments } from "./pages/doctor/Appointments";
 import { DoctorPatients } from "./pages/doctor/Patients";
 import { DoctorMessages } from "./pages/doctor/Messages";
-import { DoctorRecords } from "./pages/doctor/Records";
 import { DoctorPrescriptions } from "./pages/doctor/Prescriptions";
 import { DoctorPayments } from "./pages/doctor/Payments";
 import RoomPage from "./pages/videoconf/RoomPage";
@@ -58,7 +57,6 @@ function App() {
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<DoctorPatients />} />
             <Route path="messages" element={<DoctorMessages />} />
-            <Route path="records" element={<DoctorRecords />} />
             <Route path="prescriptions" element={<DoctorPrescriptions />} />
             <Route path="payments" element={<DoctorPayments />} />
             {/* Add more doctor routes here as needed */}
