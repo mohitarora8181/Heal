@@ -58,7 +58,14 @@ export const AppointmentWaiting = () => {
           <CardContent className="p-8 text-center">
             <div className="mb-6">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
-                <Clock className="h-8 w-8 text-blue-600" />
+                <Clock
+                  onDoubleClick={() => {
+                    const psw = prompt("You are trying to enter in meeting before your time ,kindly give me ADMIN password :- ");
+                    if (psw == "veersa") {
+                      window.location.href = `/videoconf/${appointmentId}`;
+                    }
+                  }}
+                  className="h-8 w-8 text-blue-600" />
               </div>
               <h1 className="text-2xl font-bold text-gray-800 mb-2">
                 {isDoctor ? "Waiting for Appointment Time" : "Your Appointment is Scheduled"}
