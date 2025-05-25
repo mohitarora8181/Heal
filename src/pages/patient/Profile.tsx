@@ -218,19 +218,19 @@ export const PatientProfile = () => {
                         transition={{ duration: 0.3 }}
                     >
                         <Card className="overflow-hidden border-none shadow-md">
-                            <div className="bg-gradient-to-r from-primary-500 to-primary-600 h-24"></div>
+                            <div className="bg-gradient-to-r from-primary-500 to-primary-600 h-16"></div>
                             <CardContent className="p-6 -mt-12 relative">
-                                <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-6">
-                                    <div className="bg-white p-1 rounded-full shadow-lg">
+                                <div className="flex flex-col gap-2 items-center md:items-end space-y-4 md:space-y-0 md:space-x-6">
+                                    <div className="bg-white p-1 rounded-full shadow-lg self-center">
                                         <Avatar user={profileUser} size="xl" />
                                     </div>
-                                    <div className="text-center md:text-left">
-                                        <h2 className="text-2xl font-bold text-white max-sm:text-gray-700">{profileUser?.name}</h2>
+                                    <div className="flex flex-col w-full">
+                                        <h2 className="text-2xl font-bold text-gray-700">{profileUser?.name}</h2>
                                         <div className="flex items-center py-1 justify-center md:justify-start space-x-1 text-gray-600 mt-1">
                                             <Mail size={16} />
                                             <span>{profileUser?.email}</span>
                                         </div>
-                                        <Badge variant="secondary" className="mt-2">Patient</Badge>
+                                        <Badge variant="secondary" className="mt-2 w-fit self-end">Patient</Badge>
                                     </div>
                                 </div>
                             </CardContent>

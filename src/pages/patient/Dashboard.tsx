@@ -10,79 +10,176 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+// Define interfaces for type safety
+interface Doctor {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  specialization?: string;
+}
+
+interface Appointment {
+  _id: string;
+  patientId: string;
+  doctorId: Doctor;
+  date: string;
+  duration: number;
+  isUrgent: boolean;
+  type: string;
+  status: string;
+}
+
+interface Prescription {
+  _id: string;
+  patientId: string;
+  doctorId: string;
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }>;
+  date: string;
+  refillable: boolean;
+  refills: number;
+  isActive?: boolean;
+}
+
 export const PatientDashboard = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  if (!currentUser || currentUser.role !== "patient") {
-    return <div>Unauthorized</div>;
-  }
-
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [activePrescriptions, setActivePrescriptions] = useState();
-  const [medicalRecords, setMedicalRecords] = useState();
-  const [, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [activePrescriptions, setActivePrescriptions] = useState<number>(0);
+  const [medicalRecords, setMedicalRecords] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [heartRate, setHeartRate] = useState<number | null>(85);
 
   useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/appointments/${currentUser._id}`
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch appointments");
-        }
-        const data = await response.json();
-        setAppointments(data);
-      } catch (err: any) {
-        setError(err.message || "Error fetching appointments");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAppointments();
+    if (!currentUser?._id) return;
 
-    const fetchPrescriptions = async () => {
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/prescriptions/${currentUser._id}`
-        );
-        console.log(response);
-        if (!response.ok) {
-          throw new Error("Failed to fetch prescriptions");
-        }
-        const data = await response.json();
-        setActivePrescriptions(data.filter((p: any) => p.isActive).length);
-      } catch (err: any) {
-        setError(err.message || "Error fetching prescriptions");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPrescriptions();
+    // Set up fetch requests
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
 
-    const fetchMedicalRecords = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/medical-records/${
-            currentUser._id
-          }`
-        );
-        console.log(response);
-        if (!response.ok) {
-          throw new Error("Failed to fetch medical records");
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
+        const token = localStorage.getItem("healToken");
+
+        if (!token) {
+          throw new Error("Authentication required");
         }
-        const data = await response.json();
-        setMedicalRecords(data.length);
+
+        // Fetch appointments
+        const appointmentsPromise = fetch(
+          `${backendUrl}/appointments/${currentUser._id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        ).then(response => {
+          if (!response.ok) throw new Error("Failed to fetch appointments");
+          return response.json();
+        });
+
+        // Fetch prescriptions
+        const prescriptionsPromise = fetch(
+          `${backendUrl}/prescriptions?userRole=patient&userId=${currentUser._id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        ).then(response => {
+          if (!response.ok) throw new Error("Failed to fetch prescriptions");
+          return response.json();
+        });
+
+        // Fetch medical records
+        const recordsPromise = fetch(
+          `${backendUrl}/medical-records/${currentUser._id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        ).then(response => {
+          if (!response.ok) throw new Error("Failed to fetch medical records");
+          return response.json();
+        });
+
+        // Fetch patient details for vitals
+        const patientDetailsPromise = fetch(
+          `${backendUrl}/users/${currentUser._id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        ).then(response => {
+          if (!response.ok) throw new Error("Failed to fetch patient details");
+          return response.json();
+        });
+
+        // Execute all promises concurrently
+        const [appointmentsData, prescriptionsData, recordsData, patientData] =
+          await Promise.all([appointmentsPromise, prescriptionsPromise, recordsPromise, patientDetailsPromise]);
+
+        setAppointments(appointmentsData);
+
+        // Get active prescriptions (not expired)
+        const activePrescriptionsCount = prescriptionsData.filter((p: Prescription) => {
+          // Consider a prescription active if it has refills or was prescribed within the last 30 days
+          const prescriptionDate = new Date(p.date);
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          return p.refillable && p.refills > 0 || prescriptionDate > thirtyDaysAgo;
+        }).length;
+
+        setActivePrescriptions(activePrescriptionsCount);
+        setMedicalRecords(recordsData.length);
+
+        // Extract heart rate from patient details if available
+        if (patientData.patientDetails?.vitals?.heartRate) {
+          const heartRateValue = parseInt(patientData.patientDetails.vitals.heartRate);
+          if (!isNaN(heartRateValue)) {
+            setHeartRate(heartRateValue);
+          }
+        }
+
       } catch (err: any) {
-        setError(err.message || "Error fetching medical records");
+        console.error("Error fetching dashboard data:", err);
+        setError(err.message || "Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
     };
-    fetchMedicalRecords();
-  }, [currentUser._id]);
+
+    fetchData();
+  }, [currentUser?._id]);
+
+  // Early return for unauthorized users
+  if (!currentUser || currentUser.role !== "patient") {
+    return (
+      <PageLayout>
+        <div className="p-8 text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Unauthorized Access</h2>
+          <p className="text-gray-600">You must be logged in as a patient to view this dashboard.</p>
+          <Button className="mt-4" onClick={() => navigate("/login")}>
+            Go to Login
+          </Button>
+        </div>
+      </PageLayout>
+    );
+  }
 
   // Filter upcoming appointments for the current patient
   const upcomingTotalAppointments = appointments
@@ -96,14 +193,11 @@ export const PatientDashboard = () => {
 
   const upcomingAppointments = upcomingTotalAppointments.slice(0, 3);
 
-  // Find doctors for upcoming appointments
-  const appointmentDoctors = upcomingAppointments.map((appointment) => {
-    const doctor = appointments.find((doc) => doc._id === appointment.doctorId);
-    return {
-      appointment,
-      doctor,
-    };
-  });
+  // Enhance appointments with doctor data
+  const appointmentDoctors = upcomingAppointments.map((appointment) => ({
+    appointment,
+    doctor: appointment.doctorId,
+  }));
 
   // Container animation
   const containerVariants = {
@@ -126,13 +220,30 @@ export const PatientDashboard = () => {
     },
   };
 
+  if (loading) {
+    return (
+      <PageLayout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
           Welcome back, {currentUser.name}
         </h1>
+        <p className="text-gray-600 mt-1">Here's an overview of your health</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-error-50 border border-error-200 rounded-md">
+          <p className="text-error-700">{error}</p>
+        </div>
+      )}
 
       <motion.div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
@@ -161,7 +272,7 @@ export const PatientDashboard = () => {
                 <Pill className="h-6 w-6 text-secondary-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800">
-                {activePrescriptions ?? 0}
+                {activePrescriptions}
               </h2>
               <p className="text-gray-600 mt-1">Active Prescriptions</p>
             </CardContent>
@@ -175,7 +286,7 @@ export const PatientDashboard = () => {
                 <Activity className="h-6 w-6 text-accent-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800">
-                {medicalRecords ?? 0}
+                {medicalRecords}
               </h2>
               <p className="text-gray-600 mt-1">Health Records</p>
             </CardContent>
@@ -188,8 +299,12 @@ export const PatientDashboard = () => {
               <div className="bg-error-50 p-3 rounded-full mb-3">
                 <Heart className="h-6 w-6 text-error-500" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-800">85</h2>
-              <p className="text-gray-600 mt-1">Heart Rate (bpm)</p>
+              <h2 className="text-3xl font-bold text-gray-800">
+                {heartRate || '—'}
+              </h2>
+              <p className="text-gray-600 mt-1">
+                {heartRate ? 'Heart Rate (bpm)' : 'Heart Rate Not Available'}
+              </p>
             </CardContent>
           </Card>
         </motion.div>
@@ -220,7 +335,7 @@ export const PatientDashboard = () => {
                 <div className="space-y-4">
                   {appointmentDoctors.map(({ appointment, doctor }) => (
                     <div
-                      key={appointment.id}
+                      key={appointment._id}
                       className="flex items-center p-4 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors"
                     >
                       {doctor && (
@@ -228,10 +343,10 @@ export const PatientDashboard = () => {
                       )}
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-800">
-                          {doctor?.name || "Unknown Doctor"}
+                          {doctor?.name || "Doctor"}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {doctor?.specialization || "Specialist"}
+                          {doctor?.specialization || "Healthcare Professional"}
                         </p>
                       </div>
                       <div className="text-right">
@@ -247,11 +362,18 @@ export const PatientDashboard = () => {
                             {format(new Date(appointment.date), "h:mm a")}
                           </span>
                         </div>
-                        {appointment.isUrgent && (
-                          <Badge variant="error" className="mt-2">
-                            Urgent
+                        <div className="mt-2">
+                          <Badge
+                            variant={appointment.type === 'video' ? 'primary' : 'secondary'}
+                          >
+                            {appointment.type.charAt(0).toUpperCase() + appointment.type.slice(1)}
                           </Badge>
-                        )}
+                          {appointment.isUrgent && (
+                            <Badge variant="error" className="ml-2">
+                              Urgent
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

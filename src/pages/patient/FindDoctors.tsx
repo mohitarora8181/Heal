@@ -132,7 +132,7 @@ export const FindDoctors = () => {
           email: doc.email,
           specialization: doc.specialization || "General Practitioner",
           qualifications: doc.qualifications || [],
-          rating: doc.rating || 4.0,
+          rating: doc.rating || 4.8,
           profileImageUrl: doc.profileImageUrl || null,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
@@ -303,11 +303,10 @@ export const FindDoctors = () => {
                 </h3>
                 <div className="space-y-2">
                   <button
-                    className={`w-full text-left px-3 py-2 rounded-lg transition ${
-                      selectedSpecialization === "all"
-                        ? "bg-primary-50 text-primary-700"
-                        : "hover:bg-gray-50"
-                    }`}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === "all"
+                      ? "bg-primary-50 text-primary-700"
+                      : "hover:bg-gray-50"
+                      }`}
                     onClick={() => setSelectedSpecialization("all")}
                   >
                     All Specializations
@@ -315,11 +314,10 @@ export const FindDoctors = () => {
                   {specializations.map((spec) => (
                     <button
                       key={spec}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
-                        selectedSpecialization === spec
-                          ? "bg-primary-50 text-primary-700"
-                          : "hover:bg-gray-50"
-                      }`}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
+                        ? "bg-primary-50 text-primary-700"
+                        : "hover:bg-gray-50"
+                        }`}
                       onClick={() => setSelectedSpecialization(spec)}
                     >
                       {spec}
@@ -409,7 +407,7 @@ export const FindDoctors = () => {
                       </div>
 
                       {doctor.qualifications &&
-                      doctor.qualifications.length > 0 ? (
+                        doctor.qualifications.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {doctor.qualifications.map((qual, index) => (
                             <div
@@ -629,6 +627,7 @@ export const FindDoctors = () => {
                           amount={5000}
                           onSuccess={() => submitAppointmentRequest()}
                           onError={(error) => setBookingError(error)}
+                          onClose={() => { }}
                         />
                       )}
                     </Button>
