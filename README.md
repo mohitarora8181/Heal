@@ -30,6 +30,7 @@
 
 - 🔐 Secure video/audio consultations (ZegoCloud)
 - 🧠 Real-time voice transcription (DeepGram)
+- 📃 Conversation History 
 - 🤖 AI chatbot assistant (Gemini 2.0 Flash)
 - 📝 Patient profile & medical history
 - 💬 Real-time chat (Socket.IO)
@@ -54,7 +55,7 @@
 - Authenticate and manage availability
 - Conduct live consultations
 - Access patient profile , history & prescriptions
-- View real-time transcripts
+- View real-time transcripts & conversation history
 
 
 ---
@@ -65,8 +66,9 @@
 ![Appointments](public/images/appointments.png)
 ![Find Doctor](public/images/find-doctor.png)
 ![Messages](public/images/messages.png)
-![alt text](public/images/medical-records.png)
-![alt text](public/images/prescriptions.png)
+![Medical records](public/images/medical-records.png)
+![Prescriptions](public/images/prescriptions.png)
+![Conversation History](public/images/Conversation_history.jpg)
 
 ## 🧰 Tech Stack
 
