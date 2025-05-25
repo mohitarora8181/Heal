@@ -278,10 +278,10 @@ function RoomPage(): JSX.Element {
     }
   }, []);
 
-  const clearTranscript = useCallback(() => {
-    setTranscript("");
-    setError("");
-  }, []);
+  // const clearTranscript = useCallback(() => {
+  //   setTranscript("");
+  //   setError("");
+  // }, []);
 
   useEffect(() => {
     if (!roomId || !containerRef.current || !currentUser?.name) return;
@@ -369,12 +369,7 @@ function RoomPage(): JSX.Element {
             >
               {isTranscribing ? 'Stop' : 'Start'}
             </button>
-            <button
-              onClick={clearTranscript}
-              className="px-3 py-1 rounded bg-gray-600 text-white text-xs font-medium ml-1"
-            >
-              Clear
-            </button>
+            
           </div>
           {error && (
             <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs mb-1 border border-red-200">
