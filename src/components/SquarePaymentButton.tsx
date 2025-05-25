@@ -136,7 +136,7 @@ const SquarePaymentModal = ({
             loading || !card ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {loading ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
+          {loading ? "Processing..." : `Pay ₹${amount.toFixed(2)}`}
         </button>
       </div>
     </div>,
