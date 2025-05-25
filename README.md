@@ -20,9 +20,9 @@
 
 ## 🎥 Demo & UI Prototype
 
-- **Figma UI Flow:** https://www.figma.com/design/7zbAJUWn47fjBOnql5KpvZ/HealFigma?node-id=0-1&t=999p6fqrwA18vEsx-1
-- **Demo Video:** _Coming Soon_
+- **Demo Video:** https://www.youtube.com/watch?v=6398bJGjdlA
 - **Deployed Frontend :** https://heal-frontend.vercel.app/
+- **Figma UI Flow:** https://www.figma.com/design/7zbAJUWn47fjBOnql5KpvZ/HealFigma?node-id=0-1&t=999p6fqrwA18vEsx-1
 
 ---
 
