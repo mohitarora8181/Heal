@@ -70,6 +70,10 @@ export const Records = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    // Edit mode states
+    const [editMode, setEditMode] = useState(false);
+    const [recordToEdit, setRecordToEdit] = useState<string | null>(null);
+
     // Fetch medical records when component mounts
     useEffect(() => {
         fetchRecords();
@@ -200,6 +204,29 @@ export const Records = () => {
         }
     };
 
+    const handleEditRecord = (record: MedicalRecord) => {
+        //@ts-ignore
+        const doctor = doctors.find(d => d._id === record.doctorId._id);
+        if (doctor) {
+            setSelectedDoctor(doctor);
+        }
+
+        setNewRecord({
+            _id: record._id,
+            patientId: record.patientId,
+            doctorId: record.doctorId,
+            title: record.title,
+            description: record.description,
+            type: record.type,
+            date: new Date(record.date),
+            fileUrl: record.fileUrl
+        });
+
+        setEditMode(true);
+        setRecordToEdit(record._id);
+        setIsModalOpen(true);
+    };
+
     // Filter doctors based on search term
     const filteredDoctors = doctors.filter(
         (doctor) =>
@@ -258,7 +285,8 @@ export const Records = () => {
                 throw new Error("Authentication required");
             }
 
-            let fileUrl: string | undefined = undefined;
+            let fileUrl = newRecord.fileUrl;
+
             if (selectedFile) {
                 const fileFormData = new FormData();
                 fileFormData.append("file", selectedFile);
@@ -296,10 +324,15 @@ export const Records = () => {
                 fileUrl: fileUrl
             };
 
-            console.log("Creating medical record:", recordData);
+            const method = editMode ? "PUT" : "POST";
+            const url = editMode
+                ? `${backendUrl}/medical-records/${recordToEdit}`
+                : `${backendUrl}/medical-records`;
 
-            const recordResponse = await fetch(`${backendUrl}/medical-records`, {
-                method: "POST",
+            console.log(`${editMode ? "Updating" : "Creating"} medical record:`, recordData);
+
+            const recordResponse = await fetch(url, {
+                method: method,
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
@@ -309,18 +342,23 @@ export const Records = () => {
 
             if (!recordResponse.ok) {
                 const errorData = await recordResponse.json().catch(() => ({}));
-                throw new Error(errorData.error || "Failed to create medical record");
+                throw new Error(errorData.error || `Failed to ${editMode ? "update" : "create"} medical record`);
             }
 
-            const createdRecord = await recordResponse.json();
-            console.log("Record created successfully:", createdRecord);
+            const resultRecord = await recordResponse.json();
+            console.log(`Record ${editMode ? "updated" : "created"} successfully:`, resultRecord);
 
-            setRecords((prev) => [...prev, createdRecord]);
+            if (editMode) {
+                setRecords(prev => prev.map(r => r._id === recordToEdit ? resultRecord : r));
+            } else {
+                setRecords((prev) => [...prev, resultRecord]);
+            }
+
             setIsModalOpen(false);
             resetForm();
         } catch (error: any) {
-            console.error("Error in handleSubmit:", error);
-            setError(error.message || "Failed to upload record");
+            console.error(`Error ${editMode ? "updating" : "creating"} record:`, error);
+            setError(error.message || `Failed to ${editMode ? "update" : "upload"} record`);
         } finally {
             setIsUploading(false);
         }
@@ -337,6 +375,8 @@ export const Records = () => {
         });
         setSelectedFile(null);
         setSelectedDoctor(null);
+        setEditMode(false);
+        setRecordToEdit(null);
     };
 
     const filteredRecords = records.filter(
@@ -486,6 +526,13 @@ export const Records = () => {
                                                         </>
                                                     )}
                                                     <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleEditRecord(record)}
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                    <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-error-500 hover:text-error-700 hover:bg-error-50"
@@ -503,7 +550,7 @@ export const Records = () => {
                                                     {record.description}
                                                 </p>
                                             </div>
-                                            <div className="mt-4">
+                                            <div className="mt-4 flex w-full justify-between">
                                                 <span className="text-xs bg-primary-50 text-primary-700 px-2 py-1 rounded-full">
                                                     {record.type
                                                         .split("_")
@@ -513,6 +560,10 @@ export const Records = () => {
                                                         )
                                                         .join(" ")}
                                                 </span>
+                                                <p className="text-sm text-gray-600">
+                                                    {/* @ts-ignore */}
+                                                    Associated Doctor : {record.doctorId.name}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -534,7 +585,7 @@ export const Records = () => {
                     >
                         <div className="flex justify-between items-center p-6 border-b">
                             <h2 className="text-xl font-semibold text-gray-800">
-                                Upload Medical Record
+                                {editMode ? "Edit Medical Record" : "Upload Medical Record"}
                             </h2>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -825,10 +876,10 @@ export const Records = () => {
                                                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                                 ></path>
                                             </svg>
-                                            Uploading...
+                                            {editMode ? "Updating..." : "Uploading..."}
                                         </>
                                     ) : (
-                                        <>Upload Record</>
+                                        <>{editMode ? "Update Record" : "Upload Record"}</>
                                     )}
                                 </Button>
                             </div>

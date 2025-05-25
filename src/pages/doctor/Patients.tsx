@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, FileText, Calendar, MessageCircle, User, X, Download, Eye } from 'lucide-react';
 import { format } from 'date-fns';
@@ -92,10 +92,6 @@ export const DoctorPatients = () => {
 
     const handleViewProfile = (patientId: string) => {
         navigate(`/doctor/patients/${patientId}`);
-    };
-
-    const handleScheduleAppointment = (patientId: string) => {
-        navigate(`/doctor/appointments/schedule?patient=${patientId}`);
     };
 
     const startConversation = async (patient: Patient) => {
@@ -271,9 +267,10 @@ export const DoctorPatients = () => {
                                         </div>
                                     )}
 
-                                    <div className="mt-6 grid grid-cols-2 gap-2">
+                                    <div className="mt-6 grid grid-cols-1 gap-2">
                                         <Button
                                             variant="outline"
+                                            fullWidth
                                             size="sm"
                                             className="flex items-center justify-center"
                                             onClick={() => handleViewRecords(patient)}
@@ -281,31 +278,26 @@ export const DoctorPatients = () => {
                                             <FileText className="h-4 w-4 mr-1" />
                                             Records
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex items-center justify-center"
-                                            onClick={() => handleScheduleAppointment(patient._id)}
-                                        >
-                                            <Calendar className="h-4 w-4 mr-1" />
-                                            Schedule
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex items-center justify-center"
-                                            onClick={() => startConversation(patient)}
-                                        >
-                                            <MessageCircle className="h-4 w-4 mr-1" />
-                                            Message
-                                        </Button>
-                                        <Button
-                                            variant="primary"
-                                            size="sm"
-                                            onClick={() => handleViewProfile(patient._id)}
-                                        >
-                                            View Profile
-                                        </Button>
+                                        <div className='w-full flex gap-2'>
+                                            <Button
+                                                variant="outline"
+                                                fullWidth
+                                                size="sm"
+                                                className="flex items-center justify-center"
+                                                onClick={() => startConversation(patient)}
+                                            >
+                                                <MessageCircle className="h-4 w-4 mr-1" />
+                                                Message
+                                            </Button>
+                                            <Button
+                                                variant="primary"
+                                                fullWidth
+                                                size="sm"
+                                                onClick={() => handleViewProfile(patient._id)}
+                                            >
+                                                View Profile
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -399,7 +391,12 @@ export const DoctorPatients = () => {
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
-                                                                        onClick={() => window.open(record.fileUrl, '_blank')}
+                                                                        onClick={() => {
+                                                                            // Construct the full file URL using the backend URL and file path
+                                                                            const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
+                                                                            const fileUrl = `${backendUrl}/medical-records/files/${record.fileUrl}`;
+                                                                            window.open(fileUrl, "_blank");
+                                                                        }}
                                                                     >
                                                                         <Eye className="h-4 w-4 mr-1" />
                                                                         View
@@ -407,13 +404,40 @@ export const DoctorPatients = () => {
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
-                                                                        onClick={() => {
-                                                                            const a = document.createElement('a');
-                                                                            a.href = record.fileUrl!;
-                                                                            a.download = record.title;
-                                                                            document.body.appendChild(a);
-                                                                            a.click();
-                                                                            document.body.removeChild(a);
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
+                                                                                const fileUrl = `${backendUrl}/medical-records/files/${record.fileUrl}`;
+
+                                                                                const response = await fetch(fileUrl, {
+                                                                                    headers: {
+                                                                                        'Authorization': `Bearer ${localStorage.getItem('healToken')}`,
+                                                                                    },
+                                                                                });
+
+                                                                                if (!response.ok) {
+                                                                                    throw new Error('Failed to download file');
+                                                                                }
+
+                                                                                const blob = await response.blob();
+                                                                                const blobUrl = URL.createObjectURL(blob);
+
+                                                                                const a = document.createElement('a');
+                                                                                a.href = blobUrl;
+                                                                                a.download = record.title
+                                                                                    ? `${record.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+                                                                                    : record.fileUrl || "medical_record.pdf";
+                                                                                document.body.appendChild(a);
+                                                                                a.click();
+
+                                                                                setTimeout(() => {
+                                                                                    document.body.removeChild(a);
+                                                                                    URL.revokeObjectURL(blobUrl);
+                                                                                }, 100);
+                                                                            } catch (error) {
+                                                                                console.error('Error downloading file:', error);
+                                                                                alert('Failed to download the file. Please try again.');
+                                                                            }
                                                                         }}
                                                                     >
                                                                         <Download className="h-4 w-4 mr-1" />

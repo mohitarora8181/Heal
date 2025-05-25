@@ -7,6 +7,7 @@ import { Input } from "../../components/common/Input";
 import { Button } from "../../components/common/Button";
 import { useAuth } from "../../auth/AuthContext";
 import { format } from "date-fns";
+import { handleDownloadPrescription } from "../../utils/downloadPrescription";
 
 interface Medication {
   name: string;
@@ -18,12 +19,19 @@ interface Medication {
 
 interface Prescription {
   _id: string;
-  patientId: string;
-  doctorId: string;
-  doctor?: { name: string };
+  patientId: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  doctorId: {
+    _id: string;
+    name: string;
+    email?: string;
+  };
   medications: Medication[];
   instructions: string;
-  date: string;
+  date: Date;
   refillable: boolean;
   refills: number;
 }
@@ -31,32 +39,55 @@ interface Prescription {
 export const Prescriptions = () => {
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>();
-
-  if (!currentUser) return null;
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchPrescriptions = async () => {
-      if (!currentUser?._id) return;
-
-      try {
-        const res = await fetch(`/api/prescriptions?userId=${currentUser._id}`);
-        if (!res.ok) {
-          throw new Error("Failed to fetch prescriptions");
-        }
-        const data = await res.json();
-        setPrescriptions(data);
-      } catch (err) {
-        console.error("Failed to fetch prescriptions:", err);
-      }
-    };
-
     fetchPrescriptions();
   }, [currentUser]);
 
-  if (!currentUser) return null;
+  const fetchPrescriptions = async () => {
+    if (!currentUser?._id) return;
 
-  const userPrescriptions = prescriptions?.filter((p) =>
+    setLoading(true);
+    setError("");
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
+      const token = localStorage.getItem("healToken");
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${backendUrl}/prescriptions?userRole=patient&userId=${currentUser._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch prescriptions");
+      }
+
+      const data = await response.json();
+      setPrescriptions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch prescriptions:", err);
+      setError("Failed to load prescriptions. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const filteredPrescriptions = prescriptions.filter((p) =>
     p.medications.some((med) =>
       med.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -84,19 +115,31 @@ export const Prescriptions = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-6">
-        {userPrescriptions?.map(
-          ({
-            _id,
-            doctor,
-            date,
-            medications,
-            instructions,
-            refillable,
-            refills,
-          }) => (
+      {error && (
+        <div className="mb-6 p-4 bg-error-50 border border-error-200 rounded-md">
+          <p className="text-error-700">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+      ) : filteredPrescriptions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <FileText className="h-12 w-12 text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-700">No prescriptions found</h3>
+          <p className="text-gray-500 mt-2">
+            {searchTerm
+              ? `No results for "${searchTerm}"`
+              : "You don't have any prescriptions yet"}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {filteredPrescriptions.map((prescription) => (
             <motion.div
-              key={_id}
+              key={prescription._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -111,13 +154,17 @@ export const Prescriptions = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-medium text-gray-800">
-                            Prescription from {doctor?.name}
+                            Prescription from Dr. {prescription.doctorId?.name || "Unknown"}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            {format(new Date(date), "MMM d, yyyy")}
+                            {format(new Date(prescription.date), "MMM d, yyyy")}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPrescription(prescription)}
+                        >
                           <Download className="h-4 w-4 mr-1" />
                           Download
                         </Button>
@@ -128,7 +175,7 @@ export const Prescriptions = () => {
                           Medications
                         </h4>
                         <div className="space-y-2">
-                          {medications.map((med, index) => (
+                          {prescription.medications.map((med, index) => (
                             <div
                               key={index}
                               className="bg-gray-50 p-3 rounded-lg"
@@ -158,15 +205,15 @@ export const Prescriptions = () => {
                         <h4 className="text-sm font-medium text-gray-700 mb-2">
                           Instructions
                         </h4>
-                        <p className="text-sm text-gray-600">{instructions}</p>
+                        <p className="text-sm text-gray-600">{prescription.instructions}</p>
                       </div>
 
-                      {refillable && (
+                      {prescription.refillable && (
                         <div className="mt-4 flex items-center">
                           <span className="text-sm text-gray-600">
-                            Refills remaining: {refills}
+                            Refills remaining: {prescription.refills}
                           </span>
-                          {refills && refills > 0 && (
+                          {prescription.refills > 0 && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -182,9 +229,9 @@ export const Prescriptions = () => {
                 </CardContent>
               </Card>
             </motion.div>
-          )
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </PageLayout>
   );
 };
