@@ -64,7 +64,7 @@ const SquarePaymentModal = ({
     try {
       const tokenResult = await card.tokenize();
       if (tokenResult.status === "OK") {
-        const response = await axios.post("/api/payments/process-payment", {
+        const response = await axios.post("/api/payments/makePayment", {
           sourceId: tokenResult.token,
           amount: amount,
           currency: "USD",
@@ -108,9 +108,8 @@ const SquarePaymentModal = ({
         <button
           onClick={handlePayment}
           disabled={loading || !card}
-          className={`w-full py-2 px-4 rounded-md text-white ${
-            loading || !card ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-          }`}
+          className={`w-full py-2 px-4 rounded-md text-white ${loading || !card ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+            }`}
         >
           {loading ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
         </button>

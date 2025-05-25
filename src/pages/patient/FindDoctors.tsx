@@ -190,12 +190,49 @@ export const FindDoctors = () => {
 
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 9; hour < 17; hour++) {
-      for (let minute of ["00", "30"]) {
-        const time = `${hour}:${minute}`;
-        slots.push(time);
+
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    let startHour = 9; // Default start hour (9 AM)
+    let startMinute = 0; // Default start minute
+
+    if (isToday) {
+      startHour = now.getHours();
+
+      // If we're in the middle of an hour, move to next 30-min slot
+      if (now.getMinutes() >= 0 && now.getMinutes() < 30) {
+        startMinute = 30;
+      } else {
+        startMinute = 0;
+        startHour += 1; // Move to next hour
       }
     }
+
+    // Generate time slots from 9 AM to 5 PM
+    for (let hour = 9; hour < 17; hour++) {
+      for (let minute of [0, 30]) {
+        // Skip times in the past for today
+        if (isToday && (hour < startHour || (hour === startHour && minute < startMinute))) {
+          continue;
+        }
+
+        // Format in 24-hour format for value, but display in 12-hour format
+        const formattedMinute = minute === 0 ? "00" : "30";
+        const timeValue = `${hour}:${formattedMinute}`; // 24-hour format for value
+
+        // Create 12-hour format display
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+        const amPm = hour < 12 ? "AM" : "PM";
+        const displayTime = `${displayHour}:${formattedMinute} ${amPm}`;
+
+        slots.push({
+          value: timeValue,
+          display: displayTime
+        });
+      }
+    }
+
     return slots;
   };
 
@@ -302,11 +339,10 @@ export const FindDoctors = () => {
                 </h3>
                 <div className="space-y-2">
                   <button
-                    className={`w-full text-left px-3 py-2 rounded-lg transition ${
-                      selectedSpecialization === "all"
+                    className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === "all"
                         ? "bg-primary-50 text-primary-700"
                         : "hover:bg-gray-50"
-                    }`}
+                      }`}
                     onClick={() => setSelectedSpecialization("all")}
                   >
                     All Specializations
@@ -314,11 +350,10 @@ export const FindDoctors = () => {
                   {specializations.map((spec) => (
                     <button
                       key={spec}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
-                        selectedSpecialization === spec
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${selectedSpecialization === spec
                           ? "bg-primary-50 text-primary-700"
                           : "hover:bg-gray-50"
-                      }`}
+                        }`}
                       onClick={() => setSelectedSpecialization(spec)}
                     >
                       {spec}
@@ -408,7 +443,7 @@ export const FindDoctors = () => {
                       </div>
 
                       {doctor.qualifications &&
-                      doctor.qualifications.length > 0 ? (
+                        doctor.qualifications.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {doctor.qualifications.map((qual, index) => (
                             <div
@@ -530,17 +565,17 @@ export const FindDoctors = () => {
                       Select Time
                     </h4>
                     <div className="grid grid-cols-4 gap-2">
-                      {timeSlots.map((time) => (
+                      {timeSlots.map((slot) => (
                         <Button
-                          key={time}
+                          key={slot.value}
                           variant={
-                            selectedTime === time ? "primary" : "outline"
+                            selectedTime === slot.value ? "primary" : "outline"
                           }
                           size="sm"
-                          onClick={() => setSelectedTime(time)}
+                          onClick={() => setSelectedTime(slot.value)}
                           className="justify-center"
                         >
-                          {time}
+                          {slot.display}
                         </Button>
                       ))}
                     </div>
