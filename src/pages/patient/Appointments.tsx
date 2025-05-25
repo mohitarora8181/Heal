@@ -284,34 +284,37 @@ export const Appointments = () => {
                           </div>
 
                           <div className="mt-4 flex justify-end space-x-2">
-                            {(appointment.type === "video" ||
-                              appointment.type === "audio") && (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  disabled={appointment.status == "completed"}
-                                  onClick={() =>
-                                    joinMeeting(
-                                      appointment._id,
-                                      appointment.date,
-                                      appointment.duration
-                                    )
-                                  }
-                                >
-                                  {appointment.status == "completed" ? "Attended" : appointment.type === "video"
-                                    ? "Join Video Call"
-                                    : "Join Audio Call"}
-                                </Button>
-                              )}
-                            {/* View Conversation Button */}
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => fetchConversation(appointment._id)}
-                            >
-                              View Conversation
-                            </Button>
-                          </div>
+  {(appointment.type === "video" || appointment.type === "audio") && (
+    <Button
+      variant="primary"
+      size="sm"
+      disabled={appointment.status == "completed"}
+      onClick={() =>
+        joinMeeting(
+          appointment._id,
+          appointment.date,
+          appointment.duration
+        )
+      }
+    >
+      {appointment.status == "completed"
+        ? "Attended"
+        : appointment.type === "video"
+        ? "Join Video Call"
+        : "Join Audio Call"}
+    </Button>
+  )}
+  {/* View Conversation Button - only show if appointment is completed */}
+  {appointment.status === "completed" && (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => fetchConversation(appointment._id)}
+    >
+      View Conversation
+    </Button>
+  )}
+</div>
                         </motion.div>
                       );
                     })}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, Video, Phone, MapPin } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Video, Phone, MapPin, X } from 'lucide-react';
 import { PageLayout } from '../../layouts/PageLayout';
 import { Card, CardContent, CardHeader } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -10,7 +10,6 @@ import { format, isBefore, addMinutes } from 'date-fns';
 import { useAuth } from '../../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// Define appointment interface based on your API response
 interface Appointment {
     _id: string;
     patientId: {
@@ -37,6 +36,11 @@ export const DoctorAppointments = () => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showConversation, setShowConversation] = useState(false);
+    const [conversationText, setConversationText] = useState("");
+    const [conversationLoading, setConversationLoading] = useState(false);
+    const [conversationError, setConversationError] = useState("");
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -53,7 +57,6 @@ export const DoctorAppointments = () => {
                     throw new Error('Authentication token not found');
                 }
 
-                // Using doctor ID from currentUser to fetch appointments
                 const response = await fetch(`${backendUrl}/appointments/${currentUser._id}`, {
                     method: 'GET',
                     headers: {
@@ -157,6 +160,33 @@ export const DoctorAppointments = () => {
         const canJoinEarly = addMinutes(appointmentTime, -10); // Doctors can join 10 mins early
 
         return !isBefore(now, canJoinEarly) && isBefore(now, meetingEndTime);
+    };
+
+    // Fetch conversation for an appointment
+    const fetchConversation = async (appointmentId: string) => {
+        setConversationLoading(true);
+        setConversationError("");
+        setConversationText("");
+        setSelectedAppointmentId(appointmentId);
+        setShowConversation(true);
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+            const response = await fetch(
+                `${backendUrl}/transcriptions/chat-summary/room/${appointmentId}`
+            );
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to fetch conversation");
+            }
+            const data = await response.json();
+            setConversationText(data.transcript || "No conversation found.");
+        } catch (err) {
+            setConversationError(
+                err instanceof Error ? err.message : "Failed to load conversation"
+            );
+        } finally {
+            setConversationLoading(false);
+        }
     };
 
     return (
@@ -279,6 +309,16 @@ export const DoctorAppointments = () => {
                                                                         : "Join Audio Call"}
                                                                 </Button>
                                                             )}
+                                                            {/* View Conversation Button - only show if appointment is completed */}
+                                                            {appointment.status === "completed" && (
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    onClick={() => fetchConversation(appointment._id)}
+                                                                >
+                                                                    View Conversation
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     </motion.div>
                                                 );
@@ -354,6 +394,18 @@ export const DoctorAppointments = () => {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    {/* View Conversation Button - only show if appointment is completed */}
+                                                    {appointment.status === "completed" && (
+                                                        <div className="mt-4 flex justify-end">
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => fetchConversation(appointment._id)}
+                                                            >
+                                                                View Conversation
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </motion.div>
                                             ))}
                                         </div>
@@ -364,6 +416,30 @@ export const DoctorAppointments = () => {
                     </>
                 )}
             </div>
+
+            {/* Conversation Popup */}
+            {showConversation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+                        <button
+                            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                            onClick={() => setShowConversation(false)}
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-lg font-semibold mb-4">Conversation Transcript</h2>
+                        {conversationLoading ? (
+                            <div className="py-8 text-center text-gray-500">Loading...</div>
+                        ) : conversationError ? (
+                            <div className="py-8 text-center text-red-500">{conversationError}</div>
+                        ) : (
+                            <div className="whitespace-pre-wrap break-words max-h-96 overflow-y-auto text-gray-800 py-4 px-2">
+                                {conversationText}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </PageLayout>
     );
 };
