@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, FileText, Calendar, MessageCircle, User, X, Download, Eye } from 'lucide-react';
+import { Search, FileText, MessageCircle, User, X, Download, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { PageLayout } from '../../layouts/PageLayout';
 import { Card, CardContent } from '../../components/common/Card';

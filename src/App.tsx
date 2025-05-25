@@ -24,6 +24,7 @@ import { Prescriptions } from "./pages/patient/Prescriptions";
 import { Records } from "./pages/patient/Records";
 import { Payments } from "./pages/patient/Payments";
 import { AppointmentWaiting } from "./pages/videoconf/WaitingRoom";
+import { PatientProfile } from "./pages/patient/Profile";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             element={<ProtectedRoute allowedRole="patient" />}
           >
             <Route path="dashboard" element={<PatientDashboard />} />
+            <Route path="profile" element={<PatientProfile />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="find-doctors" element={<FindDoctors />} />
             <Route path="messages" element={<Messages />} />
@@ -56,6 +58,7 @@ function App() {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<DoctorPatients />} />
+            <Route path="patients/:patientId" element={<PatientProfile />} />
             <Route path="messages" element={<DoctorMessages />} />
             <Route path="prescriptions" element={<DoctorPrescriptions />} />
             <Route path="payments" element={<DoctorPayments />} />
