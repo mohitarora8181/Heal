@@ -22,6 +22,9 @@ export const Payments = () => {
   const { currentUser } = useAuth();
 
   useEffect(() => {
+    console.log(
+      `${import.meta.env.VITE_BACKEND_URL}/payments/${currentUser?._id}/history`
+    );
     const fetchPaymentHistory = async () => {
       try {
         const response = await fetch(
@@ -30,6 +33,8 @@ export const Payments = () => {
           }/history`
         );
         const data = await response.json();
+
+        console.log("Payment History Data:", data);
 
         setPaymentHistory(data);
       } catch (error) {
@@ -46,7 +51,7 @@ export const Payments = () => {
           }`
         );
         const data = await response.json();
-        setTotalPayment(data.total);
+        setTotalPayment(data.totalPaid);
       } catch (error) {
         console.error("Error fetching total payment:", error);
       }
