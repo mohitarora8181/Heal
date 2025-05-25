@@ -1,10 +1,10 @@
 export type UserRole = 'patient' | 'doctor';
 
 export interface User {
-    id: string;
+    _id: string;
     name: string;
     email: string;
-    role: UserRole;
+    role: string | UserRole;
     profileImageUrl?: string;
 }
 
@@ -27,7 +27,7 @@ export interface Doctor extends User {
 }
 
 export interface Medication {
-    id: string;
+    _id: string;
     name: string;
     dosage: string;
     frequency: string;
@@ -36,7 +36,7 @@ export interface Medication {
 }
 
 export interface Appointment {
-    id: string;
+    _id: string;
     patientId: string;
     doctorId: string;
     date: Date;
@@ -54,7 +54,7 @@ export interface Availability {
 }
 
 export interface MedicalRecord {
-    id: string;
+    _id: string;
     patientId: string;
     doctorId: string;
     date: Date;
@@ -65,7 +65,7 @@ export interface MedicalRecord {
 }
 
 export interface Prescription {
-    id: string;
+    _id: string;
     patientId: string;
     doctorId: string;
     date: Date;

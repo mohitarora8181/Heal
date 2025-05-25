@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState, useCallback, type JSX } from 'react';
+import { useEffect, useRef, useState, useCallback, type JSX } from 'react';
 import { useParams } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import io, { Socket } from 'socket.io-client';
-
+import { useAuth } from '../../auth/AuthContext';
 
 function RoomPage(): JSX.Element {
   const { roomId } = useParams<{ roomId: string }>();
@@ -11,17 +11,26 @@ function RoomPage(): JSX.Element {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<AudioWorkletNode | null>(null);
-  
+  // Refs for resizing
+  const resizableRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+
   const [transcript, setTranscript] = useState<string>("");
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string>("");
+  // State for panel height
+  const [transcriptHeight, setTranscriptHeight] = useState<string>('30vh');
+  const [isResizing, setIsResizing] = useState<boolean>(false);
 
-  // Initialize socket connection
+  const { currentUser } = useAuth();
+  const [conversation, setConversation] = useState<string>("");
+
+
   useEffect(() => {
     if (!socketRef.current) {
       setConnectionStatus('connecting');
-      
+
       socketRef.current = io('http://localhost:4000', {
         transports: ['websocket'],
         upgrade: true,
@@ -51,13 +60,21 @@ function RoomPage(): JSX.Element {
         setError("Failed to connect to transcription service");
       });
 
-      socket.on('transcript', (data: string) => {
+      socket.on('transcript', (data: any) => {
         console.log('Received transcript:', data);
         setTranscript(prev => {
-          const newTranscript = prev ? `${prev}\n${data}` : data;
-          return newTranscript;
-        });
+        const newTranscript = prev ? `${prev}\n${typeof data === 'string' ? data : data.text}` : (typeof data === 'string' ? data : data.text);
+        return newTranscript;
       });
+        if (typeof data === 'object' && data.user && data.text) {
+        setConversation(prev => {
+          const line = `${data.user}: ${data.text}`;
+          return prev ? `${prev}\n${line}` : line;
+        });
+      }
+      });
+
+
 
       socket.on('transcription_error', (error: string) => {
         console.error('Transcription error:', error);
@@ -82,13 +99,12 @@ function RoomPage(): JSX.Element {
   const convertFloat32ToInt16 = useCallback((buffer: Float32Array): ArrayBuffer => {
     const length = buffer.length;
     const result = new Int16Array(length);
-    
+
     for (let i = 0; i < length; i++) {
-      // Clamp the value between -1 and 1, then convert to 16-bit
       const clampedValue = Math.max(-1, Math.min(1, buffer[i]));
       result[i] = Math.round(clampedValue * 0x7FFF);
     }
-    
+
     return result.buffer;
   }, []);
 
@@ -102,20 +118,18 @@ function RoomPage(): JSX.Element {
       setError("");
       console.log('Starting transcription...');
 
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
       }
 
-      // Get user media with error handling
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: { ideal: 16000 },
           channelCount: { ideal: 1 },
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
-        } 
+        }
       }).catch((err) => {
         if (err.name === 'NotAllowedError') {
           throw new Error('Microphone access denied. Please allow microphone access and try again.');
@@ -125,10 +139,9 @@ function RoomPage(): JSX.Element {
           throw new Error(`Failed to access microphone: ${err.message}`);
         }
       });
-      
+
       mediaStreamRef.current = stream;
 
-      // Create audio context with error handling
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         throw new Error('AudioContext is not supported in this browser');
@@ -137,12 +150,10 @@ function RoomPage(): JSX.Element {
       audioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
       const audioContext = audioContextRef.current;
 
-      // Resume audio context if suspended
       if (audioContext.state === 'suspended') {
         await audioContext.resume();
       }
 
-      // Load audio worklet processor - changed from .ts to .js
       try {
         await audioContext.audioWorklet.addModule('/audio-processor.js');
       } catch (error) {
@@ -151,7 +162,7 @@ function RoomPage(): JSX.Element {
       }
 
       const source = audioContext.createMediaStreamSource(stream);
-      
+
       let processor: AudioWorkletNode;
       try {
         processor = new AudioWorkletNode(audioContext, 'audio-processor');
@@ -159,7 +170,7 @@ function RoomPage(): JSX.Element {
         console.error('Failed to create AudioWorkletNode:', error);
         throw new Error('Failed to create audio processor node');
       }
-      
+
       processorNodeRef.current = processor;
 
       processor.port.onmessage = (event) => {
@@ -179,11 +190,8 @@ function RoomPage(): JSX.Element {
         setError('Audio processing error occurred');
       };
 
-      // Connect the nodes
       source.connect(processor);
-      // Note: Don't connect to destination to avoid feedback
 
-      // Notify server that transcription started
       socketRef.current.emit('start_transcription');
 
       console.log('Transcription started successfully');
@@ -191,8 +199,7 @@ function RoomPage(): JSX.Element {
       console.error('Error starting transcription:', error);
       setError(error.message || 'Failed to start transcription');
       setIsTranscribing(false);
-      
-      // Cleanup on error
+
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
         mediaStreamRef.current = null;
@@ -244,22 +251,68 @@ function RoomPage(): JSX.Element {
     setError("");
   }, []);
 
-  // Initialize video conference
+  // Add resize event handlers
   useEffect(() => {
-    if (!roomId || !containerRef.current) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      // Calculate height based on mouse position
+      const containerHeight = window.innerHeight;
+      const newHeight = containerHeight - e.clientY;
+
+      // Set min and max heights (10% - 90% of screen)
+      const minHeight = containerHeight * 0.1;
+      const maxHeight = containerHeight * 0.9;
+
+      const clampedHeight = Math.min(Math.max(newHeight, minHeight), maxHeight);
+      setTranscriptHeight(`${clampedHeight}px`);
+
+      // Prevent text selection during resize
+      e.preventDefault();
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      // Change cursor and disable text selection during resize
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const saveConversation = useCallback(()=>{
+    if (socketRef.current && roomId) {
+      console.log('Saving conversation:', conversation);
+    socketRef.current.emit('save_conversation', { roomId, conversation });
+  }
+  },[conversation, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !containerRef.current || !currentUser?.name) return;
 
     const initializeConference = () => {
-      // Use environment variables for credentials
       const appID = 1043447705;
       const secret = "b0820d28b88b6d9756c119e1730a0824";
       const userID = `user_${Math.random().toString(36).slice(2)}`;
-      const userName = `User_${Math.random().toString(36).slice(2, 8)}`;
+      const userName = currentUser?.name || userID;
 
       try {
         const KitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
           appID, secret, roomId, userID, userName
         );
-        
+
         const zc = ZegoUIKitPrebuilt.create(KitToken);
         zc.joinRoom({
           container: containerRef.current!,
@@ -286,28 +339,63 @@ function RoomPage(): JSX.Element {
 
     initializeConference();
 
-    // Cleanup function
     return () => {
       stopTranscription();
     };
-  }, [roomId, stopTranscription]);
+  }, [roomId, stopTranscription, currentUser]);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Video Conference Container */}
-      <div ref={containerRef} style={{ width: "100%", height: "70vh", flex: 1 }} />
-      
-      {/* Transcription Panel */}
-      <div style={{ 
-        height: '30vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        borderTop: '2px solid #ddd',
-        backgroundColor: '#f8f9fa'
-      }}>
-        {/* Controls */}
-        <div style={{ 
-          padding: '10px', 
+      <div ref={containerRef} style={{ width: "100%", flex: 1 }} />
+
+      <div
+        ref={resizableRef}
+        style={{
+          height: transcriptHeight,
+          display: 'flex',
+          flexDirection: 'column',
+          borderTop: '2px solid #ddd',
+          backgroundColor: '#f8f9fa',
+          position: 'relative',
+          minHeight: '100px',
+          transition: isResizing ? 'none' : 'height 0.1s ease'
+        }}
+      >
+        {/* Resize handle */}
+        <div
+          ref={dragHandleRef}
+          style={{
+            position: 'absolute',
+            top: '-6px',
+            left: 0,
+            right: 0,
+            height: '12px',
+            cursor: 'ns-resize',
+            zIndex: 10,
+            touchAction: 'none'
+          }}
+          onMouseDown={(e) => {
+            setIsResizing(true);
+            e.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            setIsResizing(true);
+            e.preventDefault();
+          }}
+        >
+          <div
+            style={{
+              height: '4px',
+              backgroundColor: '#ccc',
+              margin: '4px auto',
+              width: '60px',
+              borderRadius: '2px'
+            }}
+          />
+        </div>
+
+        <div style={{
+          padding: '10px',
           borderBottom: '1px solid #ddd',
           display: 'flex',
           alignItems: 'center',
@@ -316,16 +404,16 @@ function RoomPage(): JSX.Element {
           flexWrap: 'wrap'
         }}>
           <h3 style={{ margin: 0, fontSize: '16px' }}>Live Transcript</h3>
-          <div style={{ 
-            width: '8px', 
-            height: '8px', 
-            borderRadius: '50%', 
-            backgroundColor: connectionStatus === 'connected' ? '#28a745' : 
-                           connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: connectionStatus === 'connected' ? '#28a745' :
+              connectionStatus === 'connecting' ? '#ffc107' : '#dc3545'
           }} />
           <span style={{ fontSize: '12px', color: '#666' }}>
-            {connectionStatus === 'connected' ? 'Connected' : 
-             connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            {connectionStatus === 'connected' ? 'Connected' :
+              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
           </span>
           <button
             onClick={isTranscribing ? stopTranscription : startTranscription}
@@ -357,13 +445,26 @@ function RoomPage(): JSX.Element {
           >
             Clear
           </button>
+          <button
+  onClick={saveConversation}
+  style={{
+    padding: '5px 15px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  }}
+>
+  Save Conversation
+</button>
         </div>
-        
-        {/* Error Display */}
+
         {error && (
-          <div style={{ 
-            padding: '8px 10px', 
-            backgroundColor: '#f8d7da', 
+          <div style={{
+            padding: '8px 10px',
+            backgroundColor: '#f8d7da',
             color: '#721c24',
             borderBottom: '1px solid #f5c6cb',
             fontSize: '12px'
@@ -371,12 +472,10 @@ function RoomPage(): JSX.Element {
             ⚠️ {error}
           </div>
         )}
-        
-        {/* Transcript Display */}
-        <div style={{ 
+        <div style={{
           flex: 1,
-          padding: '10px', 
-          overflowY: 'auto', 
+          padding: '10px',
+          overflowY: 'auto',
           backgroundColor: 'white',
           fontSize: '14px',
           lineHeight: '1.4'
@@ -387,9 +486,9 @@ function RoomPage(): JSX.Element {
             </div>
           ) : (
             <div style={{ color: '#999', fontStyle: 'italic' }}>
-              {isTranscribing ? 'Listening...' : 
-               connectionStatus !== 'connected' ? 'Please wait for connection...' :
-               'Click "Start Transcription" to begin'}
+              {isTranscribing ? 'Listening...' :
+                connectionStatus !== 'connected' ? 'Please wait for connection...' :
+                  'Click "Start Transcription" to begin'}
             </div>
           )}
         </div>
