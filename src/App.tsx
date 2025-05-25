@@ -74,7 +74,7 @@ function App() {
           <Route path="/waiting-room" element={<AppointmentWaiting />} />
 
           {/* Default/Fallback Routes */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/patient/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>

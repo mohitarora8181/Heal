@@ -40,7 +40,7 @@ export const Login = () => {
     // Demo credentials
     const setDemoCredentials = (userRole: UserRole) => {
         if (userRole === 'patient') {
-            setEmail('test@gmail.com');
+            setEmail('patient@gmail.com');
             setPassword('12345678');
         } else {
             setEmail('doctor@gmail.com');

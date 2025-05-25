@@ -561,15 +561,6 @@ export const FindDoctors = () => {
                       </Button>
                       <Button
                         variant={
-                          appointmentType === "audio" ? "primary" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => setAppointmentType("audio")}
-                      >
-                        Audio Call
-                      </Button>
-                      <Button
-                        variant={
                           appointmentType === "inperson" ? "primary" : "outline"
                         }
                         size="sm"

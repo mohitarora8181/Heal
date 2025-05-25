@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -17,7 +17,6 @@ export const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { register } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +33,9 @@ export const Register = () => {
       await register(email, password, name, role);
       // Redirect based on role
       if (role === 'patient') {
-        navigate('/patient/dashboard');
+        window.open('/patient/dashboard', "_self");
       } else {
-        navigate('/doctor/dashboard');
+        window.open('/doctor/dashboard', "_self");
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to create an account');
