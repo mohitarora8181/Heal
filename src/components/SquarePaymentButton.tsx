@@ -64,11 +64,14 @@ const SquarePaymentModal = ({
     try {
       const tokenResult = await card.tokenize();
       if (tokenResult.status === "OK") {
-        const response = await axios.post("/api/payments/process-payment", {
-          sourceId: tokenResult.token,
-          amount: amount,
-          currency: "USD",
-        });
+        const response = await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}/payments/makePayment`,
+          {
+            sourceId: tokenResult.token,
+            amount: amount,
+            currency: "USD",
+          }
+        );
 
         if (response.data.success) {
           onSuccess && onSuccess(response.data.payment);
