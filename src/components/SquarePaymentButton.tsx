@@ -1,76 +1,60 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { createPortal } from "react-dom";
 
-// Add types for props and window.Square
-interface SquarePaymentButtonProps {
+interface SquarePaymentModalProps {
   amount: number;
   onSuccess?: (payment: any) => void;
   onError?: (error: string) => void;
+  onClose: () => void;
 }
 
-// Extend window type for Square
 declare global {
   interface Window {
     Square?: any;
   }
 }
 
-const SquarePaymentButton = ({
+const SquarePaymentModal = ({
   amount,
   onSuccess,
   onError,
-}: SquarePaymentButtonProps) => {
+  onClose,
+}: SquarePaymentModalProps) => {
   const [loading, setLoading] = useState(false);
-  const [, setPayments] = useState<any>(null);
   const [card, setCard] = useState<any>(null);
-  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   useEffect(() => {
-    // Only load if not already present
-    if (window.Square) {
-      setSdkLoaded(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://sandbox.web.squarecdn.com/v1/square.js";
-    script.async = true;
-    script.onload = () => setSdkLoaded(true);
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!sdkLoaded) return;
-
-    let isMounted = true;
-
     const initializeSquare = async () => {
       try {
-        const response = await axios.get("/api/payments/square-config");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/payments/square-config`
+        );
         const squarePayments = window.Square.payments(
           response.data.applicationId,
           response.data.locationId
         );
         const squareCard = await squarePayments.card();
-        await squareCard.attach("#card-container");
+        await squareCard.attach("#modal-card-container");
 
-        if (isMounted) {
-          setPayments(squarePayments);
-          setCard(squareCard);
-        }
-      } catch (error: any) {
+        setCard(squareCard);
+      } catch (error) {
+        console.error("Error initializing Square:", error);
         onError && onError("Failed to initialize payment processor");
       }
     };
 
-    initializeSquare();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [sdkLoaded, onError]);
+    if (window.Square) {
+      initializeSquare();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://sandbox.web.squarecdn.com/v1/square.js";
+      script.async = true;
+      script.onload = initializeSquare;
+      script.onerror = () => onError?.("Failed to load payment processor");
+      document.body.appendChild(script);
+    }
+  }, [onError]);
 
   const handlePayment = async () => {
     if (!card || loading) return;
@@ -88,13 +72,16 @@ const SquarePaymentButton = ({
 
         if (response.data.success) {
           onSuccess && onSuccess(response.data.payment);
+          onClose();
         } else {
           throw new Error(response.data.error || "Payment failed");
         }
       } else {
-        throw new Error(
-          tokenResult.errors?.[0]?.message || "Card tokenization failed"
-        );
+        const errorMsg =
+          Array.isArray(tokenResult.errors) && tokenResult.errors.length > 0
+            ? tokenResult.errors.map((e: any) => e.message).join(", ")
+            : "Card tokenization failed";
+        throw new Error(errorMsg);
       }
     } catch (error: any) {
       onError && onError(error.message || "Payment processing failed");
@@ -103,12 +90,61 @@ const SquarePaymentButton = ({
     }
   };
 
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Enter Payment Details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div id="modal-card-container" className="mb-4"></div>
+
+        <button
+          onClick={handlePayment}
+          disabled={loading || !card}
+          className={`w-full py-2 px-4 rounded-md text-white ${
+            loading || !card ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {loading ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const SquarePaymentButton = ({
+  amount,
+  onSuccess,
+  onError,
+}: SquarePaymentModalProps) => {
+  const [showModal, setShowModal] = useState(false);
+
   return (
-    <div style={{ maxWidth: "500px", margin: "0 auto" }}>
-      <button onClick={handlePayment} disabled={loading || !card}>
-        {loading ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
+      >
+        Pay Now
       </button>
-    </div>
+
+      {showModal && (
+        <SquarePaymentModal
+          amount={amount}
+          onSuccess={onSuccess}
+          onError={onError}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </>
   );
 };
 
