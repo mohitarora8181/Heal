@@ -4,14 +4,12 @@ import { Bell, MessageCircle, LogOut, User } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/common/Avatar';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 
 export const Topbar = () => {
     const { currentUser, logout } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isMessagesOpen, setIsMessagesOpen] = useState(false);
-    const navigate = useNavigate();
 
     if (!currentUser) return null;
 
@@ -221,10 +219,10 @@ export const Topbar = () => {
                                     <LogOut size={16} className="mr-2" />
                                     Logout
                                 </button>
-                                <button className='p-3 hover:bg-gray-50 transition-all w-full' onClick={(e) => {
+                                {/* <button className='p-3 hover:bg-gray-50 transition-all w-full' onClick={(e) => {
                                     e.preventDefault();
                                     navigate('/EnterRoom')
-                                }}>Join Room</button>
+                                }}>Join Room</button> */}
                             </motion.div>
                         )}
                     </AnimatePresence>

@@ -42,15 +42,15 @@ interface Conversation {
 interface MedicalRecord {
     title: string;
     description: string;
+    type: string;
 }
 
-// AI assistant user object
 const AI_ASSISTANT: User = {
     _id: 'ai',
     name: 'Health AI Assistant',
     email: 'ai@heal.app',
     role: 'assistant',
-    profileImageUrl: '/ai-avatar.png' // You can add a proper AI avatar image
+    profileImageUrl: '/icon.png'
 };
 
 export const Messages = () => {
@@ -65,6 +65,7 @@ export const Messages = () => {
     const [isAiChat, setIsAiChat] = useState(false);
     const [aiConversationId, setAiConversationId] = useState<string | null>(null);
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+    const [isAiTyping, setIsAiTyping] = useState(false);
 
     const socketRef = useRef<Socket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -237,7 +238,14 @@ export const Messages = () => {
             }
 
             const data = await response.json();
-            setMedicalRecords(data);
+            setMedicalRecords(data.map((rec: any) => {
+                return {
+                    description: rec.description,
+                    title: rec.title,
+                    type: rec.type,
+                    doctor: rec.doctorId.name
+                }
+            }));
         } catch (err) {
             console.error('Error fetching medical records:', err);
             // Not setting error here as it's not critical for the chat functionality
@@ -266,6 +274,9 @@ export const Messages = () => {
         // Clear input
         setMessage('');
 
+        // Show AI typing indicator
+        setIsAiTyping(true);
+
         try {
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
             const token = localStorage.getItem('healToken');
@@ -291,6 +302,9 @@ export const Messages = () => {
 
             const data = await response.json();
 
+            // Hide AI typing indicator
+            setIsAiTyping(false);
+
             // Add AI response to UI
             const aiResponseMessage: Message = {
                 _id: data.messageId,
@@ -305,6 +319,9 @@ export const Messages = () => {
 
         } catch (err) {
             console.error('Error getting AI response:', err);
+
+            // Hide AI typing indicator
+            setIsAiTyping(false);
 
             // Show error message in chat
             const errorMessage: Message = {
@@ -662,26 +679,72 @@ export const Messages = () => {
                                             </p>
                                         </div>
                                     ) : (
-                                        messages.map(msg => (
-                                            <div
-                                                key={msg._id}
-                                                className={`flex mb-4 ${msg.senderId === currentUser?._id ? 'justify-end' : 'justify-start'}`}
-                                            >
+                                        <>
+                                            {messages.map(msg => (
                                                 <div
-                                                    className={`max-w-[70%] rounded-lg p-3 ${msg.senderId === currentUser?._id
-                                                        ? 'bg-primary-500 text-white'
-                                                        : isAiChat && msg.senderId === 'ai'
-                                                            ? 'bg-secondary-100 text-gray-800'
-                                                            : 'bg-gray-100 text-gray-800'
-                                                        }`}
+                                                    key={msg._id}
+                                                    className={`flex mb-4 ${msg.senderId === currentUser?._id ? 'justify-end' : 'justify-start'}`}
                                                 >
-                                                    <p className="text-sm">{msg.content}</p>
-                                                    <p className="text-xs mt-1 opacity-70">
-                                                        {format(new Date(msg.timestamp), 'h:mm a')}
-                                                    </p>
+                                                    <div
+                                                        className={`max-w-[70%] rounded-lg p-3 ${msg.senderId === currentUser?._id
+                                                            ? 'bg-primary-500 text-white'
+                                                            : isAiChat && msg.senderId === 'ai'
+                                                                ? 'bg-secondary-100 text-gray-800'
+                                                                : 'bg-gray-100 text-gray-800'
+                                                            }`}
+                                                    >
+                                                        <p className="text-sm">{msg.content}</p>
+                                                        <p className="text-xs mt-1 opacity-70">
+                                                            {format(new Date(msg.timestamp), 'h:mm a')}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ))}
+
+                                            {isAiTyping && (
+                                                <div className="flex mb-4 justify-start">
+                                                    <div className="bg-secondary-100 text-gray-800 rounded-lg p-3 max-w-[70%]">
+                                                        <div className="flex space-x-1">
+                                                            <motion.div
+                                                                className="h-2 w-2 bg-gray-500 rounded-full"
+                                                                animate={{
+                                                                    y: [0, -5, 0]
+                                                                }}
+                                                                transition={{
+                                                                    duration: 0.6,
+                                                                    repeat: Infinity,
+                                                                    repeatType: "loop"
+                                                                }}
+                                                            />
+                                                            <motion.div
+                                                                className="h-2 w-2 bg-gray-500 rounded-full"
+                                                                animate={{
+                                                                    y: [0, -5, 0]
+                                                                }}
+                                                                transition={{
+                                                                    duration: 0.6,
+                                                                    repeat: Infinity,
+                                                                    repeatType: "loop",
+                                                                    delay: 0.2
+                                                                }}
+                                                            />
+                                                            <motion.div
+                                                                className="h-2 w-2 bg-gray-500 rounded-full"
+                                                                animate={{
+                                                                    y: [0, -5, 0]
+                                                                }}
+                                                                transition={{
+                                                                    duration: 0.6,
+                                                                    repeat: Infinity,
+                                                                    repeatType: "loop",
+                                                                    delay: 0.4
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                     <div ref={messagesEndRef} />
                                 </div>

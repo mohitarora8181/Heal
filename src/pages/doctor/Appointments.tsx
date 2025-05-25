@@ -97,7 +97,7 @@ export const DoctorAppointments = () => {
 
     // Sort appointments by date (closest first)
     const sortedAppointments = [...appointments].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
     // Get today's appointments
